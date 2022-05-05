@@ -36,6 +36,9 @@ jobs:
 
     - name: Build source dist
       run: python setup.py sdist
+      env:
+        BUILD_MONAI: 1
+        FORCE_CUDA: 1
 
     - name: Upload Python Dist
       uses: actions/upload-artifact@v2
