@@ -1,0 +1,63 @@
+name: precompile-pip-ext
+
+on:
+  push:
+    branches:
+      - test-release
+
+  # workflow_dispatch:
+  #   inputs:
+  #     test_py:
+  #       description: 'Publish package to test PY Repository'
+  #       required: true
+  #       default: 'false'
+
+jobs:
+  build:
+    uses: charliebudd/torch-extension-builder/.github/workflows/build-pytorch-extension-wheels.yml@main
+    with:
+      python-versions: "[3.6, 3.7, 3.8]"
+      pytorch-versions: "[1.9, '1.10']"
+      cuda-versions: "[10.2, 11.3]"
+
+  build_sdist:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Install dependencies
+      run: |
+        pip install wheel setuptools
+        pip install -r requirements-dev.txt
+
+    - name: Build source dist
+      run: python setup.py sdist
+
+    - name: Upload Python Dist
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: dist/
+        if-no-files-found: error
+
+  publish_pypi:
+    runs-on: ubuntu-18.04
+    needs:
+    - build
+    - build_sdist
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: dist
+        path: dist/
+
+    - name: Publish distribution to Test PyPI
+      uses: pypa/gh-action-pypi-publish@v1.5.0
+      with:
+        password: ${{ secrets.TEST_PYPI }}
+        repository_url: https://test.pypi.org/legacy/
