@@ -19,6 +19,7 @@ jobs:
       python-versions: "[3.6, 3.7, 3.8]"
       pytorch-versions: "[1.9, '1.10']"
       cuda-versions: "[10.2, 11.3]"
+      build-command: "BUILD_MONAI=1 FORCE_CUDA=1 python setup.py bdist_wheel"
 
   build_sdist:
     runs-on: ubuntu-18.04
@@ -37,8 +38,8 @@ jobs:
     - name: Build source dist
       run: python setup.py sdist
       env:
-        BUILD_MONAI: 1
-        FORCE_CUDA: 1
+        BUILD_MONAI: 0
+        FORCE_CUDA: 0
 
     - name: Upload Python Dist
       uses: actions/upload-artifact@v2
