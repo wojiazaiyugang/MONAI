@@ -14,12 +14,12 @@ on:
 
 jobs:
   build:
-    uses: charliebudd/torch-extension-builder/.github/workflows/build-pytorch-extension-wheels.yml@main
+    uses: wyli/torch-extension-builder/.github/workflows/build-pytorch-extension-wheels.yml@test-branch
     with:
       python-versions: "[3.7, 3.8, 3.9]"
       pytorch-versions: "[1.9, '1.10', 1.11]"
-      cuda-versions: "[10.2, 11.3]"
-      build-command: "BUILD_MONAI=1 FORCE_CUDA=1 python setup.py bdist_wheel"
+      cuda-versions: "[10.2]"  # cuda-versions: "[10.2, 11.3]"
+      build-command: "BUILD_MONAI=1 FORCE_CUDA=1 python setup.py bdist_wheel --build-number $(date +'%Y%m%d%H%M')"
 
   build_sdist:
     runs-on: ubuntu-18.04
@@ -54,11 +54,11 @@ jobs:
     - build
     - build_sdist
     steps:
-    - name: Download all the dists
-      uses: actions/download-artifact@v2
-      with:
-        name: dist
-        path: dist/
+    # - name: Download all the dists
+    #   uses: actions/download-artifact@v2
+    #   with:
+    #     name: dist
+    #     path: dist/
     - name: Download all the dists
       uses: actions/download-artifact@v2
       with:
