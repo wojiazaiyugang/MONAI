@@ -19,7 +19,7 @@ jobs:
       python-versions: "[3.7, 3.8, 3.9]"
       pytorch-versions: "[1.9, '1.10', 1.11]"
       cuda-versions: "[10.2]"  # cuda-versions: "[10.2, 11.3]"
-      build-command: "BUILD_MONAI=1 FORCE_CUDA=1 python setup.py bdist_wheel --build-number $(date +'%Y%m%d%H%M')"
+      build-command: "BUILD_MONAI=1 FORCE_CUDA=1 TORCH_CUDA_ARCH_LIST='7.0' python setup.py bdist_wheel --build-number $(date +'%Y%m%d%H%M')"
 
   build_sdist:
     runs-on: ubuntu-18.04
