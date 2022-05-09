@@ -93,7 +93,7 @@ def get_extensions():
     sources = source_cpu
     if BUILD_CPP:
         extension = CppExtension
-        extra_compile_args.setdefault("cxx", [])
+        extra_compile_args.setdefault("cxx", ['-g0'])
         if torch_parallel_backend() == "AT_PARALLEL_OPENMP":
             extra_compile_args["cxx"] += omp_flags()
         extra_link_args = omp_flags()
@@ -101,7 +101,7 @@ def get_extensions():
         extension = CUDAExtension
         sources += source_cuda
         define_macros += [("WITH_CUDA", None)]
-        extra_compile_args = {"cxx": [], "nvcc": []}
+        extra_compile_args = {"cxx": ['-g0'], "nvcc": ['-O3']}
         if torch_parallel_backend() == "AT_PARALLEL_OPENMP":
             extra_compile_args["cxx"] += omp_flags()
     if extension is None or not sources:
