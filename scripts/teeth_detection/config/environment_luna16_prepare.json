@@ -1,0 +1,5 @@
+{
+    "orig_data_base_dir": "/media/3TB/data/luna16",
+    "data_base_dir": "/home/yujiannan/Projects/MONAI/data/luna_detection/resampled_data_base_dir",
+    "data_list_file_path": "/home/yujiannan/Projects/MONAI/data/luna_detection/LUNA16_datasplit-20220615T233840Z-001/LUNA16_datasplit/original/dataset_fold0.json"
+}

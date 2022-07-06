@@ -1,0 +1,7 @@
+{
+    "model_path": "/home/yujiannan/Projects/MONAI/models/teeth_detection/model_luna16_fold9.pt",
+    "data_base_dir": "/home/yujiannan/Projects/MONAI/data/luna_detection/resampled_data_base_dir",
+    "data_list_file_path": "/home/yujiannan/Projects/MONAI/data/luna_detection/LUNA16_datasplit-20220615T233840Z-001/LUNA16_datasplit/dataset_fold9.json",
+    "tfevent_path": "/home/yujiannan/Projects/MONAI/logs/luna16_fold9",
+    "result_list_file_path": "/home/yujiannan/Projects/MONAI/models/teeth_detection/result/result_luna16_fold9.json"
+}

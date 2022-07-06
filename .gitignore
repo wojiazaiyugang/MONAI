@@ -142,3 +142,8 @@ tests/testing_data/schema.json
 
 # profiling results
 *.prof
+
+/data
+/logs/
+**/*.ply
+**/*.obj
