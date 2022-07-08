@@ -1,7 +1,7 @@
 import gc
 import json
 from pathlib import Path
-from typing import Mapping, Hashable, Dict, Any
+from typing import Mapping, Hashable, Dict, Any, Optional
 
 import numpy as np
 import torch
@@ -86,12 +86,17 @@ class MergeLabelValueD(MapTransform):
     """
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, keys: KeysCollection, name: str, merge_type: str = "same",
-                 allow_missing_keys: bool = False) -> None:
+    def __init__(self,
+                 keys: KeysCollection,
+                 name: str,
+                 merge_type: str = "same",
+                 allow_missing_keys: bool = False,
+                 copy_meta_from: str = "image") -> None:
         super().__init__(keys, allow_missing_keys)
         self.name = name
         assert merge_type in ["same", "different", "original"]
         self.merge_type = merge_type
+        self.copy_meta_from = copy_meta_from
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -126,7 +131,7 @@ class MergeLabelValueD(MapTransform):
                 raise RuntimeError("No supported merge type: ", self.merge_type)
 
         d[self.name] = out_label
-        d[self.name + "_meta_dict"] = d[self.first_key(d) + "_meta_dict"]
+        d[self.name].meta = d[self.copy_meta_from].meta
 
         for key in self.key_iterator(d):
             del d[key]
@@ -155,13 +160,15 @@ class ConfirmLabelLessD(MapTransform):
 class LogD(MapTransform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str, meta_data_key: str) -> None:
         super().__init__(["not_exist_key"], allow_missing_keys=True)
         self.message = message
+        self.meta_data_key = meta_data_key
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        print(self.message)
+        meta_dict = d[self.meta_data_key]
+        print(f"""{meta_dict.meta["filename_or_obj"]} {self.message}""")
         return d
 
 

@@ -4,7 +4,7 @@ from typing import List, Dict
 from monai.data import DataLoader, Dataset
 from monai.data.utils import no_collation
 from monai.transforms import LoadImaged, Compose, MapLabelValued, EnsureChannelFirstd, Orientationd, Spacingd, \
-    SaveImaged
+    SaveImaged, DeleteItemsd
 from scripts.transforms import MergeLabelValueD, LogD
 from scripts.unetr_seg.config import SPACING
 
@@ -36,13 +36,14 @@ if __name__ == '__main__':
             dataset.append(data)
     process_transforms = Compose([
         LoadImaged(keys=[image_key] + label_keys),
+        LogD(message="开始处理", meta_data_key="image"),
         EnsureChannelFirstd(keys=[image_key] + label_keys),
         Orientationd(keys=[image_key] + label_keys, axcodes="RAS"),
         Spacingd(keys=[image_key] + label_keys, pixdim=SPACING, padding_mode="border"),
-        LogD(message="合并 上颌骨+左颧骨+右颧骨"),
+        # LogD(message="合并 上颌骨+左颧骨+右颧骨"),
         MergeLabelValueD(keys=label_keys[4:7], name="up", merge_type="same"),
         MapLabelValued(keys="up", orig_labels=list(range(1, 2)), target_labels=list(range(3, 4))),
-        LogD(message="合并 下颌骨+下颌骨管"),
+        # LogD(message="合并 下颌骨+下颌骨管"),
         MergeLabelValueD(keys=label_keys[2:4], name="down", merge_type="same"),
         MapLabelValued(keys="down", orig_labels=list(range(1, 2)), target_labels=list(range(2, 3))),
         # 合并上下牙
@@ -65,7 +66,9 @@ if __name__ == '__main__':
             resample=False,
             separate_folder=False,
             print_log=False
-        )
+        ),
+        LogD(message="处理完成", meta_data_key="image"),
+        DeleteItemsd(keys=label_keys)
     ])
 
     process_ds = Dataset(
