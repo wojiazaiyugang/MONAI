@@ -33,11 +33,14 @@ from monai.transforms import (
     RandRotate90d,
     ToTensord,
     ToTensor,
-    SaveImageD
+    SaveImageD,
+    ResizeWithPadOrCropd,
+    MapLabelValued
 )
 from torch.utils.tensorboard import SummaryWriter
 from scripts import get_log_dir, get_data_dir
-from scripts.unetr_seg.config import SPACING, scale_intensity_range, IMAGE_SIZE, CLASS_COUNT, work_dir
+from scripts.transforms import CropSamples, CropForegroundSamples
+from scripts.single_tooth_segmentation.config import SPACING, scale_intensity_range, IMAGE_SIZE, CLASS_COUNT, work_dir
 
 
 def normalize_image_to_uint8(image):
@@ -153,13 +156,6 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
     return global_step, dice_val_best, global_step_best
 
 
-def get_datas() -> List[Dict]:
-    """
-    加载数据集
-    :return:
-    """
-
-
 def get_model() -> torch.nn.Module:
     """
     加载模型
@@ -187,23 +183,15 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
     获取训练和验证数据的transform
     :return:
     """
+    crop_margin = 5
     train_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
             AddChanneld(keys=["image", "label"]),
             Orientationd(keys=["image", "label"], axcodes="RAS"),
             scale_intensity_range,
-            CropForegroundd(keys=["image", "label"], source_key="image"),
-            RandCropByPosNegLabeld(
-                keys=["image", "label"],
-                label_key="label",
-                spatial_size=IMAGE_SIZE,
-                pos=1,
-                neg=1,
-                num_samples=4,
-                image_key="image",
-                image_threshold=0,
-            ),
+            CropForegroundSamples(keys=["image", "label"], label_key="label", margin=crop_margin),
+            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
             RandFlipd(
                 keys=["image", "label"],
                 spatial_axis=[0],
@@ -237,13 +225,11 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
             LoadImaged(keys=["image", "label"]),
             AddChanneld(keys=["image", "label"]),
             Orientationd(keys=["image", "label"], axcodes="RAS"),
-            Spacingd(
-                keys=["image", "label"],
-                pixdim=SPACING,
-                mode=("bilinear", "nearest"),
-            ),
             scale_intensity_range,
-            CropForegroundd(keys=["image", "label"], source_key="image"),
+            CropForegroundSamples(keys=["image", "label"], label_key="label", margin=crop_margin),
+            ConfirmLabelLessD(keys=["label"], max_val=200),
+            MapLabelValued(keys=["label"], orig_labels=list(range(1, 200)), target_labels=[1 for _ in range(1, 200)]),
+            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
             ToTensord(keys=["image", "label"]),
         ]
     )

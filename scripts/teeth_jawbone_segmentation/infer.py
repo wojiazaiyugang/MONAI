@@ -55,9 +55,9 @@ def get_post_transformer() -> Compose:
 
 if __name__ == '__main__':
     data = [
-        {"image": "/media/3TB/data/xiaoliutech/relu_cbct_respacing/326923_n_cbct.dcm/326923_n_cbct.nii.gz"},
-        # {"image": "/media/3TB/data/xiaoliutech/relu_cbct_respacing/310606_f_cbct.dcm/310606_f_cbct.nii.gz"},
-        # {"image": "/media/3TB/data/xiaoliutech/relu_cbct_respacing/318001_l_cbct.dcm/318001_l_cbct.nii.gz"}
+        # {"image": "/media/3TB/data/xiaoliutech/relu_cbct_respacing/326923_n_cbct.dcm/326923_n_cbct.nii.gz"},
+
+        {"image": "/home/yujiannan/Projects/MONAI/data/unetr_seg/saassd_d_cbct_image.nii.gz"}
     ]
     dataset = Dataset(data=data,
                       transform=get_inference_transformer())

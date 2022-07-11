@@ -6,7 +6,7 @@ from monai.data.utils import no_collation
 from monai.transforms import LoadImaged, Compose, MapLabelValued, EnsureChannelFirstd, Orientationd, Spacingd, \
     SaveImaged, DeleteItemsd
 from scripts.transforms import MergeLabelValueD, LogD
-from scripts.unetr_seg.config import SPACING
+from scripts.teeth_jawbone_segmentation.config import SPACING
 
 if __name__ == '__main__':
     dataset: List[Dict[str, str]] = []
@@ -19,7 +19,7 @@ if __name__ == '__main__':
                   "Mandible", "Mandibular_canals",  # 下颌骨+下颌骨管
                   "Maxillary_complex", "Left_maxillary_sinus", "Right_maxillary_sinus"]  # 上颌骨+左颧骨+右颧骨
     for data_dir in from_dataset.iterdir():
-        image_file = data_dir.joinpath(f"{data_dir.stem}.nii.gz")
+        image_file = data_dir.joinpath(f"{data_dir.stem}_image.nii.gz")
         if to_dataset.joinpath(image_file.name).exists():
             print(f"跳过已存在数据 {image_file.name}")
             continue

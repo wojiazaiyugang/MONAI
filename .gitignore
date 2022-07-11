@@ -144,6 +144,6 @@ tests/testing_data/schema.json
 *.prof
 
 /data
-/logs/
+**/logs/
 **/*.ply
 **/*.obj
