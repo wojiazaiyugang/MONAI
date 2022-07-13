@@ -4,6 +4,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Mapping, Hashable, Dict, Any, Optional, Union, Sequence, List
 from itertools import chain
+import random
 
 import numpy as np
 import torch
@@ -11,7 +12,7 @@ import torch
 from monai.data import MetaTensor
 from monai.config import KeysCollection, NdarrayOrTensor, IndexSelection
 from monai.transforms import MapTransform, generate_spatial_bounding_box, InvertibleTransform, CropForeground, \
-    SpatialCrop, BorderPad
+    SpatialCrop, BorderPad, RandomizableTransform
 from monai.utils import NumpyPadMode, PytorchPadMode, ensure_tuple_rep, ensure_tuple, ImageMetaKey as Key
 from monai.utils.enums import TraceKeys, TransformBackends
 
@@ -352,7 +353,7 @@ class CropForegroundSamples(MapTransform, InvertibleTransform):
                 if meta_key not in results[i]:
                     results[i][meta_key] = {}  # type: ignore
                 results[i][meta_key][Key.PATCH_INDEX] = i  # type: ignore
-
+        # print(f"裁剪样本数量: {d['image_meta_dict']['filename_or_obj']} {len(results)}")
         return results
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:

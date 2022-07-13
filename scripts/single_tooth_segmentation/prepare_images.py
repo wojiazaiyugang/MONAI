@@ -17,6 +17,10 @@ if __name__ == '__main__':
     label_keys = ["Cbct_lower_teeth", "Cbct_upper_teeth"]
     for data_dir in from_dataset.iterdir():
         image_file = data_dir.joinpath(f"{data_dir.stem}_image.nii.gz")
+        for err_image in ["619276","sunhui", "tanyi"]:
+            if err_image in image_file.name:
+                print(f"跳过异常数据{image_file}")
+                continue
         if to_dataset.joinpath(image_file.name).exists():
             print(f"跳过已存在数据 {image_file.name}")
             continue
@@ -36,12 +40,13 @@ if __name__ == '__main__':
         LogD(message="开始处理", meta_data_key="image"),
         EnsureChannelFirstd(keys=["image"] + label_keys),
         Orientationd(keys=["image"] + label_keys, axcodes="RAS"),
-        Spacingd(keys=["image"] + label_keys, pixdim=SPACING, padding_mode="border"),
-        ConfirmLabelLessD(keys=label_keys[:1], max_val=200),
-        MapLabelValued(keys=label_keys[:1], orig_labels=list(range(1, 200)), target_labels=list(range(201, 400))),
+        Spacingd(keys=["image"] + label_keys, pixdim=SPACING, padding_mode="border", mode=("bilinear", "nearest", "nearest")),
+        ConfirmLabelLessD(keys=label_keys[:1], max_val=120),
+        MapLabelValued(keys=label_keys[:1], orig_labels=list(range(1, 120)), target_labels=list(range(121, 240))),
         # 合并上下牙
         MergeLabelValueD(keys=label_keys, name="label", merge_type="original"),
         FormatLabelD(keys=["label"]),
+        LogD(message="处理完成，开始保存", meta_data_key="image"),
         # 合并所有标签
         SaveImaged(
             keys="image",
@@ -60,12 +65,8 @@ if __name__ == '__main__':
             separate_folder=False,
             print_log=False
         ),
-        LogD(message="处理完成", meta_data_key="image"),
         DeleteItemsd(keys=label_keys)
     ])
-
-    process_transforms(dataset)
-    exit()
 
     process_ds = Dataset(
         data=dataset,

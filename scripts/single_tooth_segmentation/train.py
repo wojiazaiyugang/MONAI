@@ -13,6 +13,9 @@ from monai.data import (
     CacheDataset,
     load_decathlon_datalist,
     decollate_batch,
+Dataset,
+PersistentDataset,
+SmartCacheDataset
 )
 from monai.inferers import sliding_window_inference
 from monai.losses import DiceCELoss
@@ -39,9 +42,9 @@ from monai.transforms import (
 )
 from torch.utils.tensorboard import SummaryWriter
 from scripts import get_log_dir, get_data_dir
-from scripts.transforms import CropSamples, CropForegroundSamples
+from scripts.transforms import CropSamples, CropForegroundSamples, ConfirmLabelLessD
 from scripts.single_tooth_segmentation.config import SPACING, scale_intensity_range, IMAGE_SIZE, CLASS_COUNT, work_dir
-
+from scripts.dataset import RandomSubItemListDataset
 
 def normalize_image_to_uint8(image):
     """
@@ -77,7 +80,7 @@ def validation(epoch_iterator_val, global_step):
                 "Validate (%d / %d Steps)" % (global_step, 10.0)
             )
             if step == 0:
-                slice_id = 120
+                slice_id = 60
                 image = val_inputs[0][0].cpu().numpy()[..., slice_id]
                 label = val_labels[0][0].cpu().numpy()[..., slice_id]
                 image = normalize_image_to_uint8(image)
@@ -191,6 +194,8 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
             Orientationd(keys=["image", "label"], axcodes="RAS"),
             scale_intensity_range,
             CropForegroundSamples(keys=["image", "label"], label_key="label", margin=crop_margin),
+            ConfirmLabelLessD(keys=["label"], max_val=50),
+            MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
             RandFlipd(
                 keys=["image", "label"],
@@ -227,8 +232,8 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
             Orientationd(keys=["image", "label"], axcodes="RAS"),
             scale_intensity_range,
             CropForegroundSamples(keys=["image", "label"], label_key="label", margin=crop_margin),
-            ConfirmLabelLessD(keys=["label"], max_val=200),
-            MapLabelValued(keys=["label"], orig_labels=list(range(1, 200)), target_labels=[1 for _ in range(1, 200)]),
+            ConfirmLabelLessD(keys=["label"], max_val=50),
+            MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
             ToTensord(keys=["image", "label"]),
         ]
@@ -236,12 +241,12 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
     return train_transforms, val_transforms
 
 
-def get_dataset() -> Tuple[monai.data.CacheDataset, monai.data.CacheDataset]:
+def get_dataset():
     """
     获取数据集
     :return:
     """
-    dataset_dir = get_data_dir().joinpath("unetr_seg")
+    dataset_dir = get_data_dir().joinpath("single_tooth_segmentation")
     dataset = []
     for file in dataset_dir.iterdir():
         if "image" in file.name:
@@ -250,19 +255,39 @@ def get_dataset() -> Tuple[monai.data.CacheDataset, monai.data.CacheDataset]:
                 "image": str(file),
                 "label": str(label_file)
             })
+    # dataset = dataset[:3]
     train_count = int(len(dataset) * 0.95)
     train_files, val_files = dataset[:train_count], dataset[train_count:]
     train_transforms, val_transforms = get_train_val_transform()
     train_ds = CacheDataset(
         data=train_files,
         transform=train_transforms,
-        cache_num=24,
+        cache_num=6,
         cache_rate=1.0,
-        num_workers=8,
+        num_workers=4,
     )
+
+    # train_ds = Dataset(data=train_files,
+    #                    transform=train_transforms)
+    # train_ds = PersistentDataset(
+    #     data=train_files,
+    #     transform=train_transforms,
+    #     cache_dir="/home/yujiannan/Projects/MONAI/data/temp/train",
+    # )
+
+    train_ds = RandomSubItemListDataset(train_ds, max_len=6)
     val_ds = CacheDataset(
         data=val_files, transform=val_transforms, cache_num=6, cache_rate=1.0, num_workers=4
     )
+    # val_ds = Dataset(data=val_files,
+    #                  transform=val_transforms)
+    # val_ds = PersistentDataset(
+    #     data=val_files,
+    #     transform=val_transforms,
+    #     cache_dir="/home/yujiannan/Projects/MONAI/data/temp/val",
+    # )
+
+    val_ds = RandomSubItemListDataset(val_ds, max_len=3)
     return train_ds, val_ds
 
 
@@ -271,7 +296,7 @@ if __name__ == '__main__':
     train_ds, val_ds = get_dataset()
 
     train_loader = DataLoader(
-        train_ds, batch_size=1, shuffle=True, num_workers=8, pin_memory=True
+        train_ds, batch_size=1, shuffle=True, num_workers=4, pin_memory=True
     )
     val_loader = DataLoader(
         val_ds, batch_size=1, shuffle=False, num_workers=4, pin_memory=True
