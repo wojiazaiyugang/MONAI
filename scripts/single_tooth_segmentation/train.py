@@ -1,6 +1,8 @@
 import os
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from cv2 import cv2
+from pathlib import Path
+
 
 import torch
 import numpy as np
@@ -159,14 +161,14 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
     return global_step, dice_val_best, global_step_best
 
 
-def get_model() -> torch.nn.Module:
+def get_model(pretrained_model: Optional[Path] = None) -> torch.nn.Module:
     """
     加载模型
     :return:
     """
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    return UNETR(
+    model = UNETR(
         in_channels=1,
         out_channels=CLASS_COUNT,
         img_size=IMAGE_SIZE,
@@ -179,6 +181,9 @@ def get_model() -> torch.nn.Module:
         res_block=True,
         dropout_rate=0.0,
     ).to(device)
+    if pretrained_model:
+        model.load_state_dict(torch.load(pretrained_model))
+    return model
 
 
 def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transforms.Compose]:
@@ -302,7 +307,8 @@ if __name__ == '__main__':
         val_ds, batch_size=1, shuffle=False, num_workers=4, pin_memory=True
     )
 
-    model = get_model()
+    pretrained_model = Path(__file__).parent.joinpath("logs").joinpath("2").joinpath("best_metric_model.pth")
+    model = get_model(pretrained_model)
 
     loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
     torch.backends.cudnn.benchmark = True

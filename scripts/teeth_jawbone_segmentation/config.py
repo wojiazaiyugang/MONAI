@@ -4,7 +4,7 @@ from scripts import get_log_dir
 
 work_dir = get_log_dir().joinpath("unetr_seg").joinpath("2")
 
-SPACING = (0.25, 0.25, 0.25)  # 数据预处理
+SPACING = (0.5, 0.5, 0.5)  # 数据预处理
 IMAGE_SIZE = (96, 96, 96)  # 数据训练size
 
 scale_intensity_range = ScaleIntensityRanged(

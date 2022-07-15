@@ -4,7 +4,7 @@ from monai.transforms import ScaleIntensityRanged
 
 from scripts import get_log_dir
 
-work_dir = Path(__file__).parent.resolve().joinpath("logs").joinpath("1")
+work_dir = Path(__file__).parent.resolve().joinpath("logs").joinpath("3")
 
 SPACING = (0.25, 0.25, 0.25)  # 数据预处理
 IMAGE_SIZE = (96, 96, 96)  # 数据训练size

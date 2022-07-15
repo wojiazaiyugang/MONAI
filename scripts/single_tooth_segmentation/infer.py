@@ -1,23 +1,18 @@
 import time
-from pathlib import Path
 
 import mcubes
 import numpy as np
-import open3d as o3d
 import torch
 
 from monai.data import DataLoader, Dataset
 from monai.inferers import sliding_window_inference
 from monai.transforms import SaveImageD, Compose, LoadImaged, AddChanneld, Orientationd, Spacingd, CropForegroundd, \
-    ToNumpyd, FromMetaTensord, ToMetaTensord
+    ToNumpyd, FromMetaTensord
 from scripts import get_log_dir
+from scripts.single_tooth_segmentation.config import work_dir, scale_intensity_range, SPACING
+from scripts.single_tooth_segmentation.train import get_model
 from scripts.transforms import SetAttrd
-from scripts.teeth_jawbone_segmentation.config import work_dir, scale_intensity_range, SPACING
-from scripts.teeth_jawbone_segmentation.iso_surface import numpy_to_itk_image, extract_itk_image_isosurface
-from scripts.teeth_jawbone_segmentation.train import get_model
 
-
-# import igl
 
 
 def get_inference_transformer() -> Compose:
@@ -57,15 +52,14 @@ def get_post_transformer() -> Compose:
 if __name__ == '__main__':
     data = [
         # {"image": "/media/3TB/data/xiaoliutech/relu_cbct_respacing/326923_n_cbct.dcm/326923_n_cbct.nii.gz"},
-
-        {"image": "/home/yujiannan/Projects/MONAI/data/teeth_jawbone_segmentation/saassd_d_cbct_image.nii.gz"}
+        {"image": "/home/yujiannan/Projects/MONAI/data/unetr_seg/saassd_d_cbct_image.nii.gz"}
     ]
     dataset = Dataset(data=data,
                       transform=get_inference_transformer())
     data_loader = DataLoader(dataset=dataset, batch_size=1, num_workers=4, pin_memory=torch.cuda.is_available(), collate_fn=lambda x: x)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = get_model()
-    model.load_state_dict(torch.load(Path(__file__).parent.resolve().joinpath("logs").joinpath("1").joinpath("best_metric_model.pth")))
+    model.load_state_dict(torch.load(get_log_dir().joinpath("unetr_seg").joinpath("1").joinpath("best_metric_model.pth")))
     model.eval()
     post_transformer = get_post_transformer()
     with torch.no_grad():
@@ -89,10 +83,10 @@ if __name__ == '__main__':
 
                     # itk_image = numpy_to_itk_image(output, affine_lps_to_ras=False, meta_data=batch_data[0]["image_meta_dict"])
                     # verts, faces = extract_itk_image_isosurface(itk_image, np.average(output.cpu().numpy()))
-                    mesh = o3d.geometry.TriangleMesh()
-                    mesh.vertices = o3d.utility.Vector3dVector(verts)
-                    mesh.triangles = o3d.utility.Vector3iVector(faces)
-                    o3d.visualization.draw_geometries([mesh])
+                    # mesh = o3d.geometry.TriangleMesh()
+                    # mesh.vertices = o3d.utility.Vector3dVector(verts)
+                    # mesh.triangles = o3d.utility.Vector3iVector(faces)
+                    # o3d.visualization.draw_geometries([mesh])
                     # o3d.io.write_triangle_mesh(f"{i}.ply", mesh, write_ascii=True)
                     # igl.write_triangle_mesh("isosurface.ply", verts, faces, force_ascii=False)
                     # open3d.

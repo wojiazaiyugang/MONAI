@@ -19,7 +19,7 @@ from vtkmodules.vtkCommonCore import (
 import itk
 import torch
 import numpy as np
-from scripts.unetr_seg.image_writer import ITKWriter
+from scripts.teeth_jawbone_segmentation.image_writer import ITKWriter
 
 
 def numpy_to_itk_image(
