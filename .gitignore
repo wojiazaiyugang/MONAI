@@ -147,3 +147,4 @@ tests/testing_data/schema.json
 **/logs/
 **/*.ply
 **/*.obj
+/models/

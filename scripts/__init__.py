@@ -56,5 +56,14 @@ def get_scripts_output(file: str) -> Path:
     return scripts_output_dir.joinpath(file)
 
 
+def get_model(file: str) -> Path:
+    """
+    获取模型，用于预训练或者存储之类的
+    :param file:
+    :return:
+    """
+    return get_scripts_dir().joinpath("model").joinpath(file)
+
+
 if __name__ == '__main__':
     print(get_scripts_data("image.nii.gz"))
