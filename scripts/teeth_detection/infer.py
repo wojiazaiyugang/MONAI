@@ -70,7 +70,7 @@ def generate_detection_inference_transform(image_key, pred_box_key, pred_label_k
     )
     post_transforms = Compose(
         [
-            LogD(keys=[image_key], message="开始ClipBoxToImaged"),
+            LogD(meta_data_key=image_key, message="开始ClipBoxToImaged"),
             ClipBoxToImaged(
                 box_keys=[pred_box_key],
                 label_keys=[pred_label_key, pred_score_key],
@@ -91,9 +91,9 @@ def generate_detection_inference_transform(image_key, pred_box_key, pred_label_k
             #            box_mask_keys=["box_mask"], min_fg_label=0),
             # # LogD(keys=[image_key], message="开始MergeLabelValued"),
             # MergeLabelValued(keys=["box_mask"]),
-            # # LogD(keys=[image_key], message="开始保存图像"),
-            # SaveImaged(keys=["box_mask"], meta_keys=["image_meta_dict"], output_dir="/home/yujiannan/桌面/",
-            #            separate_folder=False),
+            LogD(meta_data_key=image_key, message="开始保存图像"),
+            SaveImaged(keys=[pred_box_key], meta_keys=["image_meta_dict"], output_dir="/home/yujiannan/桌面/",
+                       separate_folder=False),
             # DeleteItemsd(keys=[image_key]),
         ]
     )
@@ -154,7 +154,7 @@ def main(image: Path):
     )
 
     # 2) build network
-    net = torch.jit.load("/home/yujiannan/Projects/MONAI/models/teeth_detection/10/model_luna16_fold0.pt").to(device)
+    net = torch.jit.load(Path(__file__).parent.joinpath("logs").joinpath("10").joinpath("model_luna16_fold0.pt")).to(device)
 
     # 3) build detector
     detector = RetinaNetDetector(

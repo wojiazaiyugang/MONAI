@@ -1,6 +1,6 @@
 import os
 from typing import List, Dict, Tuple
-from cv2 import cv2
+import cv2
 
 import torch
 import numpy as np

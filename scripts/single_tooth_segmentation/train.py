@@ -1,6 +1,6 @@
 import os
 from typing import List, Dict, Tuple, Optional
-from cv2 import cv2
+import cv2
 from pathlib import Path
 
 
@@ -227,7 +227,6 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
                 offsets=0.10,
                 prob=0.50,
             ),
-            ToTensord(keys=["image", "label"]),
         ]
     )
     val_transforms = Compose(
@@ -240,7 +239,6 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
             ConfirmLabelLessD(keys=["label"], max_val=50),
             MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
-            ToTensord(keys=["image", "label"]),
         ]
     )
     return train_transforms, val_transforms

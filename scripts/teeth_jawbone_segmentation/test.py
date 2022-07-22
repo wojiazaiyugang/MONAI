@@ -9,12 +9,10 @@ import torch
 from monai.data import DataLoader, Dataset
 from monai.inferers import sliding_window_inference
 from monai.transforms import SaveImageD, Compose, LoadImaged, AddChanneld, Orientationd, Spacingd, CropForegroundd, \
-    ToNumpyd, FromMetaTensord, ToMetaTensord
-from scripts import get_log_dir
-from scripts.transforms import SetAttrd
+    ToNumpyd, FromMetaTensord
 from scripts.teeth_jawbone_segmentation.config import work_dir, scale_intensity_range, SPACING
-from scripts.teeth_jawbone_segmentation.iso_surface import numpy_to_itk_image, extract_itk_image_isosurface
 from scripts.teeth_jawbone_segmentation.train import get_model
+from scripts.transforms import SetAttrd
 
 
 # import igl

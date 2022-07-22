@@ -15,6 +15,7 @@ import logging
 import sys
 import time
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -97,7 +98,7 @@ def main():
     #     del data["label"]
 
     inference_data = [
-        {"image": "/home/yujiannan/桌面/310606_Fussen"}
+        {"image": "/home/yujiannan/Projects/MONAI/data/teeth_detection/zhaohui_Newtom_cbct.nii.gz"}
     ]
 
     inference_ds = Dataset(
@@ -125,7 +126,9 @@ def main():
     )
 
     # 2) build network
-    net = torch.jit.load(env_dict["model_path"]).to(device)
+    # net = torch.jit.load(env_dict["model_path"]).to(device)
+    net = torch.jit.load(Path(__file__).parent.joinpath("logs").joinpath("10").joinpath("model_luna16_fold0.pt")).to(
+        device)
     print(f"Load model from {env_dict['model_path']}")
 
     # 3) build detector
@@ -210,4 +213,5 @@ if __name__ == "__main__":
         format="[%(asctime)s.%(msecs)03d][%(levelname)5s](%(name)s) - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    from monai.transforms import Invertd
     main()
