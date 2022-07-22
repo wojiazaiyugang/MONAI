@@ -62,7 +62,7 @@ def get_model(file: str) -> Path:
     :param file:
     :return:
     """
-    return get_scripts_dir().joinpath("model").joinpath(file)
+    return get_project_dir().joinpath("models").joinpath(file)
 
 
 if __name__ == '__main__':

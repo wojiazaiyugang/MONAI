@@ -1,0 +1,5 @@
+在3的基础上
+把train_loader和val_loader的pin_memory参数从True改为False
+pin_memory之后把我显存都占了没法做别的
+但是改了之后报错RuntimeError: received 0 items of ancdata尝试解决了一下没解决
+就又改回来了，所以配置是跟3完全一样的

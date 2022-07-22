@@ -1,17 +1,16 @@
 import os
-from typing import List, Dict, Tuple
-import cv2
+from typing import Tuple
 
-import torch
+import cv2
 import numpy as np
+import torch
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-import matplotlib.pylab as plt
 
 import monai.data
 from monai.data import (
     DataLoader,
     CacheDataset,
-    load_decathlon_datalist,
     decollate_batch,
 )
 from monai.inferers import sliding_window_inference
@@ -28,16 +27,13 @@ from monai.transforms import (
     RandFlipd,
     RandCropByPosNegLabeld,
     RandShiftIntensityd,
-    ScaleIntensityRanged,
     Spacingd,
     RandRotate90d,
-    ToTensord,
-    ToTensor,
-    SaveImageD
+    ToTensord
 )
-from torch.utils.tensorboard import SummaryWriter
-from scripts import get_log_dir, get_data_dir
-from scripts.teeth_jawbone_segmentation.config import SPACING, scale_intensity_range, IMAGE_SIZE, CLASS_COUNT, work_dir
+from scripts import get_data_dir
+from scripts.teeth_jawbone_segmentation.config import SPACING, SCALE_INTENSITY_RANGE, IMAGE_SIZE, CLASS_COUNT, \
+    WORK_DIR, PRETRAINED_MODEL
 
 
 def normalize_image_to_uint8(image):
@@ -137,7 +133,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
             if dice_val > dice_val_best:
                 dice_val_best = dice_val
                 global_step_best = global_step
-                torch.save(model.state_dict(), str(work_dir.joinpath("best_metric_model.pth")))
+                torch.save(model.state_dict(), str(WORK_DIR.joinpath("best_metric_model.pth")))
                 print(
                     "Model Was Saved ! Current Best Avg. Dice: {} Current Avg. Dice: {}".format(
                         dice_val_best, dice_val
@@ -153,13 +149,6 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
     return global_step, dice_val_best, global_step_best
 
 
-def get_datas() -> List[Dict]:
-    """
-    加载数据集
-    :return:
-    """
-
-
 def get_model() -> torch.nn.Module:
     """
     加载模型
@@ -167,7 +156,7 @@ def get_model() -> torch.nn.Module:
     """
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    return UNETR(
+    model = UNETR(
         in_channels=1,
         out_channels=CLASS_COUNT,
         img_size=IMAGE_SIZE,
@@ -180,6 +169,22 @@ def get_model() -> torch.nn.Module:
         res_block=True,
         dropout_rate=0.0,
     ).to(device)
+    if PRETRAINED_MODEL:
+        print('加载预训练模型 {}'.format(PRETRAINED_MODEL))
+        vit_dict = torch.load(PRETRAINED_MODEL)
+        vit_weights = vit_dict['state_dict']
+
+        # Remove items of vit_weights if they are not in the ViT backbone (this is used in UNETR).
+        # For example, some variables names like conv3d_transpose.weight, conv3d_transpose.bias,
+        # conv3d_transpose_1.weight and conv3d_transpose_1.bias are used to match dimensions
+        # while pretraining with ViTAutoEnc and are not a part of ViT backbone.
+        model_dict = model.vit.state_dict()
+        vit_weights = {k: v for k, v in vit_weights.items() if k in model_dict}
+        model_dict.update(vit_weights)
+        model.vit.load_state_dict(model_dict)
+        del model_dict, vit_weights, vit_dict
+        print('预训练模型加载完成')
+    return model
 
 
 def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transforms.Compose]:
@@ -192,7 +197,7 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
             LoadImaged(keys=["image", "label"]),
             AddChanneld(keys=["image", "label"]),
             Orientationd(keys=["image", "label"], axcodes="RAS"),
-            scale_intensity_range,
+            SCALE_INTENSITY_RANGE,
             CropForegroundd(keys=["image", "label"], source_key="image"),
             RandCropByPosNegLabeld(
                 keys=["image", "label"],
@@ -242,7 +247,7 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
                 pixdim=SPACING,
                 mode=("bilinear", "nearest"),
             ),
-            scale_intensity_range,
+            SCALE_INTENSITY_RANGE,
             CropForegroundd(keys=["image", "label"], source_key="image"),
             ToTensord(keys=["image", "label"]),
         ]
@@ -255,7 +260,7 @@ def get_dataset() -> Tuple[monai.data.CacheDataset, monai.data.CacheDataset]:
     获取数据集
     :return:
     """
-    dataset_dir = get_data_dir().joinpath("unetr_seg")
+    dataset_dir = get_data_dir().joinpath("teeth_jawbone_segmentation")
     dataset = []
     for file in dataset_dir.iterdir():
         if "image" in file.name:
@@ -270,7 +275,7 @@ def get_dataset() -> Tuple[monai.data.CacheDataset, monai.data.CacheDataset]:
     train_ds = CacheDataset(
         data=train_files,
         transform=train_transforms,
-        cache_num=24,
+        cache_num=20,
         cache_rate=1.0,
         num_workers=8,
     )
@@ -281,7 +286,7 @@ def get_dataset() -> Tuple[monai.data.CacheDataset, monai.data.CacheDataset]:
 
 
 if __name__ == '__main__':
-    tensorboard_writer = SummaryWriter(str(work_dir))
+    tensorboard_writer = SummaryWriter(str(WORK_DIR))
     train_ds, val_ds = get_dataset()
 
     train_loader = DataLoader(
@@ -311,7 +316,7 @@ if __name__ == '__main__':
         global_step, dice_val_best, global_step_best = train(
             global_step, train_loader, dice_val_best, global_step_best
         )
-    model.load_state_dict(torch.load(str(work_dir.joinpath("best_metric_model.pth"))))
+    model.load_state_dict(torch.load(str(WORK_DIR.joinpath("best_metric_model.pth"))))
 
     print(
         f"train completed, best_metric: {dice_val_best:.4f} "
