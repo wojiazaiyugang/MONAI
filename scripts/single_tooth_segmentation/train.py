@@ -45,7 +45,8 @@ from monai.transforms import (
 from torch.utils.tensorboard import SummaryWriter
 from scripts import get_log_dir, get_data_dir
 from scripts.transforms import CropSamples, CropForegroundSamples, ConfirmLabelLessD
-from scripts.single_tooth_segmentation.config import SPACING, scale_intensity_range, IMAGE_SIZE, CLASS_COUNT, work_dir
+from scripts.single_tooth_segmentation.config import SPACING, scale_intensity_range, IMAGE_SIZE, CLASS_COUNT, work_dir, \
+PRETRAINED_MODEL
 from scripts.dataset import RandomSubItemListDataset
 
 def normalize_image_to_uint8(image):
@@ -161,7 +162,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
     return global_step, dice_val_best, global_step_best
 
 
-def get_model(pretrained_model: Optional[Path] = None) -> torch.nn.Module:
+def get_model() -> torch.nn.Module:
     """
     加载模型
     :return:
@@ -181,8 +182,21 @@ def get_model(pretrained_model: Optional[Path] = None) -> torch.nn.Module:
         res_block=True,
         dropout_rate=0.0,
     ).to(device)
-    if pretrained_model:
-        model.load_state_dict(torch.load(pretrained_model))
+    if PRETRAINED_MODEL:
+        print('加载预训练模型 {}'.format(PRETRAINED_MODEL))
+        vit_dict = torch.load(PRETRAINED_MODEL)
+        vit_weights = vit_dict['state_dict']
+
+        # Remove items of vit_weights if they are not in the ViT backbone (this is used in UNETR).
+        # For example, some variables names like conv3d_transpose.weight, conv3d_transpose.bias,
+        # conv3d_transpose_1.weight and conv3d_transpose_1.bias are used to match dimensions
+        # while pretraining with ViTAutoEnc and are not a part of ViT backbone.
+        model_dict = model.vit.state_dict()
+        vit_weights = {k: v for k, v in vit_weights.items() if k in model_dict}
+        model_dict.update(vit_weights)
+        model.vit.load_state_dict(model_dict)
+        del model_dict, vit_weights, vit_dict
+        print('预训练模型加载完成')
     return model
 
 
@@ -299,17 +313,15 @@ if __name__ == '__main__':
     train_ds, val_ds = get_dataset()
 
     train_loader = DataLoader(
-        train_ds, batch_size=1, shuffle=True, num_workers=4, pin_memory=True
+        train_ds, batch_size=1, shuffle=True, num_workers=0, pin_memory=False
     )
     val_loader = DataLoader(
-        val_ds, batch_size=1, shuffle=False, num_workers=4, pin_memory=True
+            val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=False
     )
-
-    pretrained_model = Path(__file__).parent.joinpath("logs").joinpath("2").joinpath("best_metric_model.pth")
-    model = get_model(pretrained_model)
 
     loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
     torch.backends.cudnn.benchmark = True
+    model = get_model()
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-5)
 
     max_iterations = 25000
