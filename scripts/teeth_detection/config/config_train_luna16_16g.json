@@ -1,7 +1,7 @@
 {
 	"gt_box_mode": "cccwhd",
 	"lr": 1e-2,
-	"spacing": [0.5, 0.5, 0.5],
+	"spacing": [0.25, 0.25, 0.25],
 	"batch_size": 4,
 	"patch_size": [60,80,80],
 	"val_patch_size": [256,256,256],
@@ -12,6 +12,6 @@
 	"nms_thresh": 0.22,
 	"returned_layers": [1,2],
 	"conv1_t_stride": [2,2,1],
-	"base_anchor_shapes": [[8,8,16],[8,11,21],[8,11,33]],
+	"base_anchor_shapes": [[80,40,120],[80,80,120],[40,80,120]],
 	"balanced_sampler_pos_fraction": 0.3
 }

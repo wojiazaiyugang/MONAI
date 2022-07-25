@@ -130,8 +130,7 @@ def main():
     # print(f"数据共计{len(train_data)}个")
     # train_data = train_data[:2]
 
-
-    d = Path("/home/yujiannan/Projects/MONAI/data/teeth_detection")
+    d = Path("/home/yujiannan/Projects/MONAI/data/teeth_detection_spacing_0.25_0.25_0.25")
     for file in d.iterdir():
         if not file.name.endswith(".txt"):
             continue

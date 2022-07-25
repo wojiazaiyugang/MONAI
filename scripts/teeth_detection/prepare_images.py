@@ -19,6 +19,7 @@ from scripts.transforms import SaveBBoxD, GenerateBBoxD, FormatLabelD, MergeLabe
 
 
 if __name__ == '__main__':
+    output_dir = Path("/home/yujiannan/Projects/MONAI/data/teeth_detection_spacing_0.25_0.25_0.25")
     parser = argparse.ArgumentParser(description="LUNA16 Detection Image Resampling")
     parser.add_argument(
         "-c",
@@ -35,7 +36,7 @@ if __name__ == '__main__':
 
     dataset: List[Dict[str, str]] = []
     for data_dir in Path("/media/3TB/data/xiaoliutech/relu_cbct_respacing").iterdir():
-        if Path("/home/yujiannan/Projects/MONAI/data/teeth_detection").joinpath(f"{data_dir.stem}.nii.gz").exists():
+        if output_dir.joinpath(f"{data_dir.stem}.nii.gz").exists():
             print(f"跳过已存在数据 {data_dir.name}")
             continue
         if not data_dir.is_dir():
@@ -69,16 +70,14 @@ if __name__ == '__main__':
             SaveImaged(
                 keys="image",
                 meta_keys="image_meta_dict",
-                output_dir=Path("/home/yujiannan/Projects/MONAI/data/teeth_detection"),
-                # output_dir=Path("/home/yujiannan/桌面/test"),
+                output_dir=output_dir,
                 output_postfix="",
                 resample=False,
                 separate_folder=False
             ),
             SaveBBoxD(
                 keys=["box"],
-                output_dir=Path("/home/yujiannan/Projects/MONAI/data/teeth_detection"),
-                # output_dir=Path("/home/yujiannan/桌面/test")
+                output_dir=output_dir,
             )
         ]
     )
