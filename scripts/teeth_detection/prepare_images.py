@@ -17,7 +17,6 @@ from monai.data import DataLoader, Dataset
 from monai.data.utils import no_collation
 from scripts.transforms import SaveBBoxD, GenerateBBoxD, FormatLabelD, MergeLabelValueD, ConfirmLabelLessD
 
-
 if __name__ == '__main__':
     output_dir = Path("/home/yujiannan/Projects/MONAI/data/teeth_detection_spacing_0.25_0.25_0.25")
     parser = argparse.ArgumentParser(description="LUNA16 Detection Image Resampling")
@@ -54,9 +53,12 @@ if __name__ == '__main__':
         EnsureChannelFirstd(keys=["image", "Cbct_lower_teeth", "Cbct_upper_teeth"]),
         EnsureTyped(keys=["image"], dtype=torch.float16),
         Orientationd(keys=["image", "Cbct_lower_teeth", "Cbct_upper_teeth"], axcodes="RAS"),
-        Spacingd(keys=["image"], pixdim=args.spacing, padding_mode="border"),
-        ConfirmLabelLessD(keys=["Cbct_lower_teeth"], max_val=200),
-        MapLabelValued(keys=["Cbct_lower_teeth"], orig_labels=list(range(1, 200)), target_labels=list(range(201, 400))),
+        Spacingd(keys=["image", "Cbct_lower_teeth", "Cbct_upper_teeth"],
+                 pixdim=args.spacing,
+                 padding_mode="border",
+                 mode=("bilinear", "nearest", "nearest")),
+        ConfirmLabelLessD(keys=["Cbct_lower_teeth"], max_val=150),
+        MapLabelValued(keys=["Cbct_lower_teeth"], orig_labels=list(range(1, 150)), target_labels=list(range(151, 300))),
         MergeLabelValueD(keys=["Cbct_lower_teeth", "Cbct_upper_teeth"], name="label", merge_type="original"),
         FormatLabelD(keys=["label"]),
         GenerateBBoxD(keys=["label"], bbox_key="box"),  # xyzxyz 图像坐标系
@@ -90,7 +92,7 @@ if __name__ == '__main__':
         process_ds,
         batch_size=1,
         shuffle=False,
-        num_workers=1,
+        num_workers=8,
         pin_memory=False,
         collate_fn=no_collation,
     )
@@ -105,4 +107,3 @@ if __name__ == '__main__':
             else:
                 batch_data_i = post_transforms(batch_data_i)
                 print(f"""数据处理完成，{batch_data_i["image_meta_dict"]["filename_or_obj"]}""")
-

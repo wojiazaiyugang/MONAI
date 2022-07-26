@@ -83,8 +83,8 @@ def main():
     # 1. define transform
     intensity_transform = ScaleIntensityRanged(
         keys=["image"],
-        a_min=500,
-        a_max=2000,
+        a_min=300,
+        a_max=3300,
         b_min=0.0,
         b_max=1.0,
         clip=True,
@@ -151,7 +151,7 @@ def main():
         train_ds,
         batch_size=1,
         shuffle=True,
-        num_workers=7,
+        num_workers=8,
         pin_memory=torch.cuda.is_available(),
         collate_fn=no_collation,
         persistent_workers=True,
@@ -165,7 +165,7 @@ def main():
     val_loader = DataLoader(
         val_ds,
         batch_size=1,
-        num_workers=2,
+        num_workers=4,
         pin_memory=torch.cuda.is_available(),
         collate_fn=no_collation,
         persistent_workers=True,
