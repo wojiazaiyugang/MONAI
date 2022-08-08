@@ -244,13 +244,6 @@ class MergeLabelValued(MapTransform):
         return d
 
 
-class CropSamples(MapTransform):
-    """
-    裁剪样本
-    """
-    pass
-
-
 class CropForegroundSamples(MapTransform, InvertibleTransform):
     """
     Crop samples with bounding box selected by foureground labels.
@@ -353,7 +346,7 @@ class CropForegroundSamples(MapTransform, InvertibleTransform):
                 if meta_key not in results[i]:
                     results[i][meta_key] = {}  # type: ignore
                 results[i][meta_key][Key.PATCH_INDEX] = i  # type: ignore
-                results[i][key].meta[Key.PATCH_INDEX] = i # 更新兼容meta tensor的patch index
+                results[i][key].meta[Key.PATCH_INDEX] = i  # 更新兼容meta tensor的patch index
         # print(f"裁剪样本数量: {d['image_meta_dict']['filename_or_obj']} {len(results)}")
         return results
 

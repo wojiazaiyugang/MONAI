@@ -1,23 +1,18 @@
 import os
-from typing import List, Dict, Tuple, Optional
+from typing import Tuple
+
 import cv2
-from pathlib import Path
-
-
-import torch
 import numpy as np
+import torch
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-import matplotlib.pylab as plt
 
 import monai.data
 from monai.data import (
     DataLoader,
     CacheDataset,
-    load_decathlon_datalist,
     decollate_batch,
-Dataset,
-PersistentDataset,
-SmartCacheDataset
+    Dataset, PersistentDataset
 )
 from monai.inferers import sliding_window_inference
 from monai.losses import DiceCELoss
@@ -27,26 +22,19 @@ from monai.transforms import (
     AsDiscrete,
     AddChanneld,
     Compose,
-    CropForegroundd,
     LoadImaged,
     Orientationd,
     RandFlipd,
-    RandCropByPosNegLabeld,
     RandShiftIntensityd,
-    ScaleIntensityRanged,
-    Spacingd,
     RandRotate90d,
-    ToTensord,
-    ToTensor,
-    SaveImageD,
     ResizeWithPadOrCropd,
-    MapLabelValued
+    MapLabelValued,
 )
-from torch.utils.tensorboard import SummaryWriter
-from scripts import get_log_dir, get_data_dir
-from scripts.transforms import CropSamples, CropForegroundSamples, ConfirmLabelLessD
-from scripts.single_tooth_segmentation.config import SPACING, scale_intensity_range, IMAGE_SIZE, CLASS_COUNT, work_dir, \
-PRETRAINED_MODEL
+from scripts import get_data_dir
+from scripts.dataset import RandomSubItemListDataset
+from scripts.single_tooth_segmentation.config import scale_intensity_range, IMAGE_SIZE, CLASS_COUNT, work_dir, \
+    PRETRAINED_MODEL
+from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD
 from scripts.dataset import RandomSubItemListDataset
 
 def normalize_image_to_uint8(image):
@@ -276,33 +264,33 @@ def get_dataset():
     train_count = int(len(dataset) * 0.95)
     train_files, val_files = dataset[:train_count], dataset[train_count:]
     train_transforms, val_transforms = get_train_val_transform()
-    train_ds = CacheDataset(
-        data=train_files,
-        transform=train_transforms,
-        cache_num=6,
-        cache_rate=1.0,
-        num_workers=4,
-    )
+    # train_ds = CacheDataset(
+    #     data=train_files,
+    #     transform=train_transforms,
+    #     cache_num=8,
+    #     cache_rate=1.0,
+    #     num_workers=4,
+    # )
 
     # train_ds = Dataset(data=train_files,
     #                    transform=train_transforms)
-    # train_ds = PersistentDataset(
-    #     data=train_files,
-    #     transform=train_transforms,
-    #     cache_dir="/home/yujiannan/Projects/MONAI/data/temp/train",
-    # )
+    train_ds = PersistentDataset(
+        data=train_files,
+        transform=train_transforms,
+        cache_dir="/home/yujiannan/Projects/MONAI/data/temp/train",
+    )
 
     train_ds = RandomSubItemListDataset(train_ds, max_len=6)
-    val_ds = CacheDataset(
-        data=val_files, transform=val_transforms, cache_num=6, cache_rate=1.0, num_workers=4
-    )
+    # val_ds = CacheDataset(
+    #     data=val_files, transform=val_transforms, cache_num=6, cache_rate=1.0, num_workers=4
+    # )
     # val_ds = Dataset(data=val_files,
     #                  transform=val_transforms)
-    # val_ds = PersistentDataset(
-    #     data=val_files,
-    #     transform=val_transforms,
-    #     cache_dir="/home/yujiannan/Projects/MONAI/data/temp/val",
-    # )
+    val_ds = PersistentDataset(
+        data=val_files,
+        transform=val_transforms,
+        cache_dir="/home/yujiannan/Projects/MONAI/data/temp/val",
+    )
 
     val_ds = RandomSubItemListDataset(val_ds, max_len=3)
     return train_ds, val_ds
