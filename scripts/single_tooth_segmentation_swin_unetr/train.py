@@ -26,7 +26,7 @@ from monai.transforms import (
 )
 from scripts import get_data_dir
 from scripts.dataset import RandomSubItemListDataset
-from scripts.single_tooth_segmentation_swin_unetr.config import scale_intensity_range, IMAGE_SIZE, work_dir
+from scripts.single_tooth_segmentation_swin_unetr.config import scale_intensity_range, IMAGE_SIZE, work_dir, CLASS_COUNT
 from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD
 
 
@@ -140,7 +140,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = SwinUNETR(
     img_size=IMAGE_SIZE,
     in_channels=1,
-    out_channels=14,
+    out_channels=CLASS_COUNT,
     feature_size=48,
     use_checkpoint=True,
 ).to(device)
