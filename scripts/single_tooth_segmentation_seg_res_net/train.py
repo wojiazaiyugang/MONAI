@@ -34,7 +34,7 @@ from monai.transforms import (
 from monai.utils import set_determinism
 from scripts import get_data_dir
 from scripts.dataset import RandomSubItemListDataset
-from scripts.single_tooth_segmentation_seg_res_net.config import work_dir, CLASS_COUNT
+from scripts.single_tooth_segmentation_seg_res_net.config import work_dir, CLASS_COUNT, scale_intensity_range
 from scripts.transforms import ConfirmLabelLessD, CropForegroundSamples
 
 
@@ -62,6 +62,7 @@ train_transform = Compose(
         LoadImaged(keys=["image", "label"]),
         EnsureChannelFirstd(keys=["image", "label"]),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
+        scale_intensity_range,
         CropForegroundSamples(keys=["image", "label"], label_key="label", margin=5),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
@@ -70,9 +71,9 @@ train_transform = Compose(
         RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=0),
         RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=1),
         RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=2),
-        NormalizeIntensityd(keys="image", nonzero=True, channel_wise=True),
-        RandScaleIntensityd(keys="image", factors=0.1, prob=1.0),
-        RandShiftIntensityd(keys="image", offsets=0.1, prob=1.0),
+        # NormalizeIntensityd(keys="image", nonzero=True, channel_wise=True),
+        # RandScaleIntensityd(keys="image", factors=0.1, prob=1.0),
+        # RandShiftIntensityd(keys="image", offsets=0.1, prob=1.0),
     ]
 )
 val_transform = Compose(
@@ -80,10 +81,12 @@ val_transform = Compose(
         LoadImaged(keys=["image", "label"]),
         EnsureChannelFirstd(keys=["image", "label"]),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
+        scale_intensity_range,
         CropForegroundSamples(keys=["image", "label"], label_key="label", margin=5),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
-        NormalizeIntensityd(keys="image", nonzero=True, channel_wise=True),
+        ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=[96, 96, 96]),
+        # NormalizeIntensityd(keys="image", nonzero=True, channel_wise=True),
     ]
 )
 
@@ -225,7 +228,7 @@ for epoch in range(max_epochs):
                 dice_metric(y_pred=val_outputs, y=val_labels)
                 dice_metric_batch(y_pred=val_outputs, y=val_labels)
 
-            slice_id = 200
+            slice_id = 80
             image = val_inputs[0][0].cpu().numpy()[..., slice_id]
             label = val_labels[0][0].cpu().numpy()[..., slice_id]
             image = normalize_image_to_uint8(image)
