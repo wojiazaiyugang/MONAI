@@ -21,7 +21,7 @@ from monai.transforms import (
     RandScaleIntensityd,
     RandSpatialCropd,
     Spacingd,
-    EnsureChannelFirstd, MapLabelValued,
+    EnsureChannelFirstd, MapLabelValued, ResizeWithPadOrCropd,
 )
 from monai.transforms import (
     AsDiscrete,
@@ -35,7 +35,7 @@ from monai.utils import set_determinism
 from scripts import get_data_dir
 from scripts.dataset import RandomSubItemListDataset
 from scripts.single_tooth_segmentation_seg_res_net.config import work_dir, CLASS_COUNT
-from scripts.transforms import ConfirmLabelLessD
+from scripts.transforms import ConfirmLabelLessD, CropForegroundSamples
 
 
 def normalize_image_to_uint8(image):
@@ -62,9 +62,11 @@ train_transform = Compose(
         LoadImaged(keys=["image", "label"]),
         EnsureChannelFirstd(keys=["image", "label"]),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
+        CropForegroundSamples(keys=["image", "label"], label_key="label", margin=5),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
-        RandSpatialCropd(keys=["image", "label"], roi_size=[224, 224, 144], random_size=False),
+        ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=[96, 96, 96]),
+        # RandSpatialCropd(keys=["image", "label"], roi_size=[224, 224, 144], random_size=False),
         RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=0),
         RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=1),
         RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=2),
@@ -78,6 +80,7 @@ val_transform = Compose(
         LoadImaged(keys=["image", "label"]),
         EnsureChannelFirstd(keys=["image", "label"]),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
+        CropForegroundSamples(keys=["image", "label"], label_key="label", margin=5),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
         NormalizeIntensityd(keys="image", nonzero=True, channel_wise=True),
@@ -99,16 +102,16 @@ train_files, val_files = dataset[:train_count], dataset[train_count:]
 train_ds = PersistentDataset(
     data=train_files,
     transform=train_transform,
-    cache_dir="/home/yujiannan/Projects/MONAI/data/temp/train3",
+    cache_dir="/home/yujiannan/Projects/MONAI/data/temp/train4",
 )
+train_ds = RandomSubItemListDataset(train_ds, max_len=4)
 
-# train_ds = RandomSubItemListDataset(train_ds, max_len=4)
 val_ds = PersistentDataset(
     data=val_files,
     transform=val_transform,
-    cache_dir="/home/yujiannan/Projects/MONAI/data/temp/val3",
+    cache_dir="/home/yujiannan/Projects/MONAI/data/temp/val4",
 )
-
+val_ds = RandomSubItemListDataset(val_ds, max_len=1)
 # val_ds = RandomSubItemListDataset(val_ds, max_len=3)
 train_loader = DataLoader(
     train_ds, batch_size=1, shuffle=True, num_workers=0, pin_memory=False
