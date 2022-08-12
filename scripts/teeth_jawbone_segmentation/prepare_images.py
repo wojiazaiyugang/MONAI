@@ -6,12 +6,12 @@ from monai.data.utils import no_collation
 from monai.transforms import LoadImaged, Compose, MapLabelValued, EnsureChannelFirstd, Orientationd, Spacingd, \
     SaveImaged, DeleteItemsd
 from scripts.transforms import MergeLabelValueD, LogD
-from scripts.teeth_jawbone_segmentation.config import SPACING
+from scripts.teeth_jawbone_segmentation.config_swin_unetr import SPACING
 
 if __name__ == '__main__':
     dataset: List[Dict[str, str]] = []
     from_dataset = Path("/media/3TB/data/xiaoliutech/relu_cbct_respacing")
-    to_dataset = Path("/home/yujiannan/Projects/MONAI/data/unetr_seg")
+    to_dataset = Path("/home/yujiannan/Projects/MONAI/data/teeth_jawbone_segmentation")
 
     image_key = "image"
     label_key = "label"

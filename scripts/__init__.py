@@ -1,4 +1,5 @@
 from pathlib import Path
+import numpy as np
 
 
 def get_project_dir() -> Path:
@@ -63,6 +64,21 @@ def get_model(file: str) -> Path:
     :return:
     """
     return get_project_dir().joinpath("models").joinpath(file)
+
+
+def normalize_image_to_uint8(image):
+    """
+    Normalize image to uint8
+    Args:
+        image: numpy array
+    """
+    draw_img = image
+    if np.amin(draw_img) < 0:
+        draw_img -= np.amin(draw_img)
+    if np.amax(draw_img) > 1:
+        draw_img /= np.amax(draw_img)
+    draw_img = (255 * draw_img).astype(np.uint8)
+    return draw_img
 
 
 if __name__ == '__main__':
