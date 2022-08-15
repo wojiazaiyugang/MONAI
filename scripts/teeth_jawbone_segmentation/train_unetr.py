@@ -32,7 +32,7 @@ from monai.transforms import (
     ToTensord
 )
 from scripts import get_data_dir
-from scripts.teeth_jawbone_segmentation.config import SPACING, SCALE_INTENSITY_RANGE, IMAGE_SIZE, CLASS_COUNT, \
+from scripts.teeth_jawbone_segmentation.config_unetr import SPACING, SCALE_INTENSITY_RANGE, IMAGE_SIZE, CLASS_COUNT, \
     WORK_DIR, PRETRAINED_MODEL
 
 

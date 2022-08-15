@@ -12,7 +12,7 @@ from monai.losses import DiceCELoss
 from monai.metrics import DiceMetric
 from monai.networks.nets import SwinUNETR
 from monai.transforms import AsDiscrete, Compose, LoadImaged, Orientationd, RandFlipd, RandShiftIntensityd, \
-    RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld
+    RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld, SpatialCropd, CenterSpatialCropd
 from scripts import get_data_dir, normalize_image_to_uint8
 from scripts.teeth_jawbone_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
     CLASS_COUNT
@@ -21,26 +21,20 @@ tensorboard_writer = SummaryWriter(str(work_dir))
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-AMP = False
-if AMP:
-    compute_dtype = torch.float16  # float 32训不起来
-else:
-    compute_dtype = torch.float32  # float 32训不起来
-
 train_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
         CropForegroundd(keys=["image", "label"], source_key="image"),
-        EnsureTyped(keys=["image", "label"], device=device, track_meta=False, dtype=compute_dtype),
+        EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
         RandCropByPosNegLabeld(
             keys=["image", "label"],
             label_key="label",
             spatial_size=IMAGE_SIZE,
             pos=1,
             neg=1,
-            num_samples=1,
+            num_samples=2,
             image_key="image",
             image_threshold=0,
         ),
@@ -76,8 +70,8 @@ val_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
-        CropForegroundd(keys=["image", "label"], source_key="image"),
-        EnsureTyped(keys=["image", "label"], device=device, track_meta=True, dtype=compute_dtype),
+        SpatialCropd(keys=["image", "label"], roi_start=(0, 0, 190), roi_end=(10000, 10000, 201)),
+        EnsureTyped(keys=["image", "label"], device=device, track_meta=True),
     ]
 )
 
@@ -135,7 +129,7 @@ def validation(epoch_iterator_val):
         for step, batch in enumerate(epoch_iterator_val):
             val_inputs, val_labels = (batch["image"].cuda(), batch["label"].cuda())
             with torch.cuda.amp.autocast():
-                val_outputs = sliding_window_inference(val_inputs, IMAGE_SIZE, 1, model)
+                val_outputs = sliding_window_inference(val_inputs, IMAGE_SIZE, 4, model)
             val_labels_list = decollate_batch(val_labels)
             val_labels_convert = [
                 post_label(val_label_tensor) for val_label_tensor in val_labels_list
@@ -149,7 +143,7 @@ def validation(epoch_iterator_val):
                 "Validate (%d / %d Steps)" % (global_step, 10.0)
             )
             if step == 0:
-                slice_id = 200
+                slice_id = 10
                 image = val_inputs[0][0].cpu().numpy()[..., slice_id]
                 label = val_labels[0][0].cpu().numpy()[..., slice_id]
                 image = normalize_image_to_uint8(image)
@@ -175,7 +169,6 @@ def validation(epoch_iterator_val):
                 tensorboard_writer.add_image(tag="val_image",
                                              img_tensor=log_image.transpose([2, 1, 0]),
                                              global_step=global_step)
-            del val_inputs, val_labels
         mean_dice_val = dice_metric.aggregate().item()
         dice_metric.reset()
     return mean_dice_val
