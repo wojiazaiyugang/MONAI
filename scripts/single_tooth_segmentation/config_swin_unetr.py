@@ -3,11 +3,10 @@ from pathlib import Path
 from monai.transforms import ScaleIntensityRanged
 from scripts import get_model
 
-work_dir = Path(__file__).parent.resolve().joinpath("logs").joinpath("2")
+work_dir = Path(__file__).parent.resolve().joinpath("logs").joinpath("swin_unetr").joinpath("3")
 
-SPACING = (0.25, 0.25, 0.25)  # 数据预处理
 IMAGE_SIZE = (96, 96, 96)  # 数据训练size
-
+# IMAGE_SIZE = (192, 192, 192)  # 数据训练size
 scale_intensity_range = ScaleIntensityRanged(
     keys=["image"],
     a_min=0,

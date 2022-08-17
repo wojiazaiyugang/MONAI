@@ -70,7 +70,7 @@ val_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
-        SpatialCropd(keys=["image", "label"], roi_start=(0, 0, 190), roi_end=(10000, 10000, 201)),
+        SpatialCropd(keys=["image", "label"], roi_start=(0, 0, 190), roi_end=(10000, 10000, 290)),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=True),
     ]
 )

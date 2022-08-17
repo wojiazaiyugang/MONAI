@@ -5,7 +5,6 @@ from scripts import get_model
 
 work_dir = Path(__file__).parent.resolve().joinpath("logs").joinpath("6")
 
-SPACING = (0.25, 0.25, 0.25)  # 数据预处理
 IMAGE_SIZE = (96, 96, 96)  # 数据训练size
 
 scale_intensity_range = ScaleIntensityRanged(

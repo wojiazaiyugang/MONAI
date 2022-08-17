@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from monai.data import (
-    decollate_batch,
+    decollate_batch, Dataset,
     PersistentDataset, DataLoader,
 )
 from monai.inferers import sliding_window_inference
@@ -26,23 +26,10 @@ from monai.transforms import (
 )
 from scripts import get_data_dir
 from scripts.dataset import RandomSubItemListDataset
-from scripts.single_tooth_segmentation_swin_unetr.config import scale_intensity_range, IMAGE_SIZE, work_dir, CLASS_COUNT
+from scripts.single_tooth_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, CLASS_COUNT
 from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD
+from scripts import normalize_image_to_uint8
 
-
-def normalize_image_to_uint8(image):
-    """
-    Normalize image to uint8
-    Args:
-        image: numpy array
-    """
-    draw_img = image
-    if np.amin(draw_img) < 0:
-        draw_img -= np.amin(draw_img)
-    if np.amax(draw_img) > 1:
-        draw_img /= np.amax(draw_img)
-    draw_img = (255 * draw_img).astype(np.uint8)
-    return draw_img
 
 tensorboard_writer = SummaryWriter(str(work_dir))
 num_samples = 4
@@ -50,7 +37,7 @@ num_samples = 4
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-crop_margin = 5
+crop_margin = 0
 train_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
@@ -101,7 +88,7 @@ val_transforms = Compose(
     ]
 )
 
-dataset_dir = get_data_dir().joinpath("single_tooth_segmentation")
+dataset_dir = get_data_dir().joinpath("single_tooth_segmentation_spacing_0.5")
 dataset = []
 for file in dataset_dir.iterdir():
     if "image" in file.name:
@@ -110,6 +97,7 @@ for file in dataset_dir.iterdir():
             "image": str(file),
             "label": str(label_file)
         })
+dataset = list(sorted(dataset, key=lambda x: x["image"]))
 # dataset = dataset[:3]
 train_count = int(len(dataset) * 0.95)
 train_files, val_files = dataset[:train_count], dataset[train_count:]
@@ -118,6 +106,10 @@ train_ds = PersistentDataset(
     transform=train_transforms,
     cache_dir="/home/yujiannan/Projects/MONAI/data/temp/train2",
 )
+# train_ds = Dataset(
+#     data=train_files,
+#     transform=train_transforms,
+# )
 
 train_ds = RandomSubItemListDataset(train_ds, max_len=4)
 val_ds = PersistentDataset(
@@ -125,10 +117,13 @@ val_ds = PersistentDataset(
     transform=val_transforms,
     cache_dir="/home/yujiannan/Projects/MONAI/data/temp/val2",
 )
-
+# val_ds = Dataset(
+#     data=val_files,
+#     transform=val_transforms,
+# )
 val_ds = RandomSubItemListDataset(val_ds, max_len=3)
 train_loader = DataLoader(
-    train_ds, batch_size=1, shuffle=True, num_workers=0, pin_memory=False
+    train_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=False
 )
 val_loader = DataLoader(
     val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=False
@@ -258,8 +253,8 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
 
 max_iterations = 30000
 eval_num = 500
-post_label = AsDiscrete(to_onehot=14)
-post_pred = AsDiscrete(argmax=True, to_onehot=14)
+post_label = AsDiscrete(to_onehot=CLASS_COUNT)
+post_pred = AsDiscrete(argmax=True, to_onehot=CLASS_COUNT)
 dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 global_step = 0
 dice_val_best = 0.0

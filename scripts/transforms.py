@@ -318,6 +318,9 @@ class CropForegroundSamples(MapTransform, InvertibleTransform):
                 select_fn=LabelSelector(fg_l), channel_indices=self.channel_indices, margin=self.margin,
             )
             box_start, box_end = cropper.compute_bounding_box(img=d[self.label_key])
+            width, height, depth = box_end[0] - box_start[0], box_end[1] - box_start[1], box_end[2] - box_start[2]
+            box_start = np.array([box_start[0] - width // 2, box_start[1] - height // 2, box_start[2] - depth // 2])
+            box_end = np.array([box_end[0] + width // 2, box_end[1] + height // 2, box_end[2] + depth // 2])
 
             # fill in the extra keys with unmodified data
             for key in set(d.keys()).difference(set(self.keys)):

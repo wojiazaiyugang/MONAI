@@ -6,32 +6,25 @@ from monai.data.utils import no_collation
 from monai.transforms import LoadImaged, Compose, MapLabelValued, EnsureChannelFirstd, Orientationd, Spacingd, \
     SaveImaged, DeleteItemsd
 from scripts.transforms import MergeLabelValueD, LogD, ConfirmLabelLessD, FormatLabelD
-from scripts.single_tooth_segmentation.config import SPACING
 
 if __name__ == '__main__':
+    SPACING = (0.5, 0.5, 0.5)  # 数据预处理
     dataset: List[Dict[str, str]] = []
     from_dataset = Path("/media/3TB/data/xiaoliutech/relu_cbct_respacing")
-    to_dataset = Path("/home/yujiannan/Projects/MONAI/data/single_tooth_segmentation")
+    to_dataset = Path("/home/yujiannan/Projects/MONAI/data/single_tooth_segmentation_spacing_0.5")
     to_dataset.mkdir(parents=True, exist_ok=True)
 
     label_keys = ["Cbct_lower_teeth", "Cbct_upper_teeth"]
     for data_dir in from_dataset.iterdir():
-        image_file = data_dir.joinpath(f"{data_dir.stem}_image.nii.gz")
-        for err_image in ["619276","sunhui", "tanyi"]:
-            if err_image in image_file.name:
-                print(f"跳过异常数据{image_file}")
-                continue
-        if to_dataset.joinpath(image_file.name).exists():
-            print(f"跳过已存在数据 {image_file.name}")
-            continue
         if not data_dir.is_dir():
             print(f"跳过非目录 {data_dir.name}")
             continue
-
+        image_file = data_dir.joinpath(f"{data_dir.stem}_image.nii.gz")
+        if to_dataset.joinpath(image_file.name).exists():
+            print(f"跳过已存在数据 {image_file.name}")
+            continue
         if all(file.exists() for file in [data_dir.joinpath(f"{data_key}.nii.gz") for data_key in label_keys]):
-            data = {
-                "image": str(data_dir.joinpath(f"{data_dir.stem}.nii.gz"))
-            }
+            data = {"image": str(data_dir.joinpath(f"{data_dir.stem}.nii.gz"))}
             for label_key in label_keys:
                 data[label_key] = str(data_dir.joinpath(f"{label_key}.nii.gz"))
             dataset.append(data)
