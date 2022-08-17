@@ -244,7 +244,7 @@ class MergeLabelValued(MapTransform):
         return d
 
 
-class CropForegroundSamples(MapTransform, InvertibleTransform):
+class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Crop samples with bounding box selected by foureground labels.
 
@@ -319,8 +319,15 @@ class CropForegroundSamples(MapTransform, InvertibleTransform):
             )
             box_start, box_end = cropper.compute_bounding_box(img=d[self.label_key])
             width, height, depth = box_end[0] - box_start[0], box_end[1] - box_start[1], box_end[2] - box_start[2]
-            box_start = np.array([box_start[0] - width // 2, box_start[1] - height // 2, box_start[2] - depth // 2])
-            box_end = np.array([box_end[0] + width // 2, box_end[1] + height // 2, box_end[2] + depth // 2])
+            box_start = [box_start[0] - width // 2, box_start[1] - height // 2, box_start[2] - depth // 2]
+            box_end = [box_end[0] + width // 2, box_end[1] + height // 2, box_end[2] + depth // 2]
+            x_offset = random.uniform(-width, width)
+            y_offset = random.uniform(-height, height)
+            z_offset = random.uniform(-depth, depth)
+            box_start = [int(box_start[0] + x_offset), int(box_start[1] + y_offset), int(box_start[2] + z_offset)]
+            box_end = [int(box_end[0] + x_offset), int(box_end[1] + y_offset), int(box_end[2] + z_offset)]
+            box_start = np.array(box_start)
+            box_end = np.array(box_end)
 
             # fill in the extra keys with unmodified data
             for key in set(d.keys()).difference(set(self.keys)):
