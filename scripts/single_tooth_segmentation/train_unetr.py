@@ -36,7 +36,7 @@ from scripts.single_tooth_segmentation.config_unetr import scale_intensity_range
     PRETRAINED_MODEL
 from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD
 from scripts.dataset import RandomSubItemListDataset
-from scripts import normalize_image_to_uint8
+from scripts import normalize_image_to_uint8, load_image_label_pair_dataset
 
 
 def validation(epoch_iterator_val, global_step):
@@ -180,11 +180,10 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
     获取训练和验证数据的transform
     :return:
     """
-    crop_margin = 5
+    crop_margin = 0
     train_transforms = Compose(
         [
-            LoadImaged(keys=["image", "label"]),
-            AddChanneld(keys=["image", "label"]),
+            LoadImaged(keys=["image", "label"], ensure_channel_first=True),
             Orientationd(keys=["image", "label"], axcodes="RAS"),
             scale_intensity_range,
             CropForegroundSamples(keys=["image", "label"], label_key="label", margin=crop_margin),
@@ -220,8 +219,7 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
     )
     val_transforms = Compose(
         [
-            LoadImaged(keys=["image", "label"]),
-            AddChanneld(keys=["image", "label"]),
+            LoadImaged(keys=["image", "label"], ensure_channel_first=True),
             Orientationd(keys=["image", "label"], axcodes="RAS"),
             scale_intensity_range,
             CropForegroundSamples(keys=["image", "label"], label_key="label", margin=crop_margin),
@@ -238,16 +236,7 @@ def get_dataset():
     获取数据集
     :return:
     """
-    dataset_dir = get_data_dir().joinpath("single_tooth_segmentation")
-    dataset = []
-    for file in dataset_dir.iterdir():
-        if "image" in file.name:
-            label_file = file.parent.joinpath(file.name.replace("image", "label"))
-            dataset.append({
-                "image": str(file),
-                "label": str(label_file)
-            })
-    # dataset = dataset[:3]
+    dataset = load_image_label_pair_dataset(get_data_dir().joinpath("single_tooth_segmentation_spacing_0.5"))
     train_count = int(len(dataset) * 0.95)
     train_files, val_files = dataset[:train_count], dataset[train_count:]
     train_transforms, val_transforms = get_train_val_transform()
@@ -264,10 +253,10 @@ def get_dataset():
     train_ds = PersistentDataset(
         data=train_files,
         transform=train_transforms,
-        cache_dir="/home/yujiannan/Projects/MONAI/data/temp/train",
+        cache_dir="/home/yujiannan/Projects/MONAI/data/temp/1",
     )
 
-    train_ds = RandomSubItemListDataset(train_ds, max_len=6)
+    train_ds = RandomSubItemListDataset(train_ds, max_len=8)
     # val_ds = CacheDataset(
     #     data=val_files, transform=val_transforms, cache_num=6, cache_rate=1.0, num_workers=4
     # )
@@ -276,7 +265,7 @@ def get_dataset():
     val_ds = PersistentDataset(
         data=val_files,
         transform=val_transforms,
-        cache_dir="/home/yujiannan/Projects/MONAI/data/temp/val",
+        cache_dir="/home/yujiannan/Projects/MONAI/data/temp/1",
     )
 
     val_ds = RandomSubItemListDataset(val_ds, max_len=3)
@@ -299,7 +288,7 @@ if __name__ == '__main__':
     model = get_model()
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-5)
 
-    max_iterations = 25000
+    max_iterations = 45000
     eval_num = 100
     post_label = AsDiscrete(to_onehot=CLASS_COUNT)
     post_pred = AsDiscrete(argmax=True, to_onehot=CLASS_COUNT)

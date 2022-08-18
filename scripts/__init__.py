@@ -1,5 +1,6 @@
 from pathlib import Path
 import numpy as np
+from typing import List
 
 
 def get_project_dir() -> Path:
@@ -77,6 +78,26 @@ def normalize_image_to_uint8(image):
         draw_img /= np.amax(draw_img)
     draw_img = (255 * draw_img).astype(np.uint8)
     return draw_img
+
+
+def load_image_label_pair_dataset(d: Path) -> List[dict]:
+    """
+    加载数据集
+    数据是*image*格式
+    标签是*label*格式
+    :param d:
+    :return:
+    """
+    dataset = []
+    for file in d.iterdir():
+        if "image" in file.name:
+            label_file = file.parent.joinpath(file.name.replace("image", "label"))
+            dataset.append({
+                "image": str(file),
+                "label": str(label_file)
+            })
+    dataset = list(sorted(dataset, key=lambda x: x["image"]))
+    return dataset
 
 
 if __name__ == '__main__':
