@@ -28,7 +28,7 @@ from scripts import get_data_dir
 from scripts.dataset import RandomSubItemListDataset
 from scripts.single_tooth_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, CLASS_COUNT
 from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD
-from scripts import normalize_image_to_uint8
+from scripts import normalize_image_to_uint8, load_image_label_pair_dataset
 
 
 tensorboard_writer = SummaryWriter(str(work_dir))
@@ -88,23 +88,13 @@ val_transforms = Compose(
     ]
 )
 
-dataset_dir = get_data_dir().joinpath("single_tooth_segmentation_spacing_0.5")
-dataset = []
-for file in dataset_dir.iterdir():
-    if "image" in file.name:
-        label_file = file.parent.joinpath(file.name.replace("image", "label"))
-        dataset.append({
-            "image": str(file),
-            "label": str(label_file)
-        })
-dataset = list(sorted(dataset, key=lambda x: x["image"]))
-# dataset = dataset[:3]
+dataset = load_image_label_pair_dataset(get_data_dir().joinpath("single_tooth_segmentation_spacing_0.5"))
 train_count = int(len(dataset) * 0.95)
 train_files, val_files = dataset[:train_count], dataset[train_count:]
 train_ds = PersistentDataset(
     data=train_files,
     transform=train_transforms,
-    cache_dir="/home/yujiannan/Projects/MONAI/data/temp/train2",
+    cache_dir="/home/yujiannan/Projects/MONAI/data/temp/2",
 )
 # train_ds = Dataset(
 #     data=train_files,
@@ -115,7 +105,7 @@ train_ds = RandomSubItemListDataset(train_ds, max_len=4)
 val_ds = PersistentDataset(
     data=val_files,
     transform=val_transforms,
-    cache_dir="/home/yujiannan/Projects/MONAI/data/temp/val2",
+    cache_dir="/home/yujiannan/Projects/MONAI/data/temp/2",
 )
 # val_ds = Dataset(
 #     data=val_files,
@@ -167,6 +157,11 @@ def validation(epoch_iterator_val):
             )
             if step == 0:
                 slice_id = 60
+                for i in range(0, 90, 10):
+                    label = val_labels[0][0].cpu().numpy()[..., slice_id]
+                    if np.sum(label) > 0:
+                        slice_id = i
+                        break
                 image = val_inputs[0][0].cpu().numpy()[..., slice_id]
                 label = val_labels[0][0].cpu().numpy()[..., slice_id]
                 image = normalize_image_to_uint8(image)

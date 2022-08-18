@@ -10,9 +10,8 @@ from tqdm import tqdm
 import monai.data
 from monai.data import (
     DataLoader,
-    CacheDataset,
     decollate_batch,
-    Dataset, PersistentDataset
+    PersistentDataset
 )
 from monai.inferers import sliding_window_inference
 from monai.losses import DiceCELoss
@@ -20,7 +19,6 @@ from monai.metrics import DiceMetric
 from monai.networks.nets import UNETR
 from monai.transforms import (
     AsDiscrete,
-    AddChanneld,
     Compose,
     LoadImaged,
     Orientationd,
@@ -31,12 +29,11 @@ from monai.transforms import (
     MapLabelValued,
 )
 from scripts import get_data_dir
+from scripts import normalize_image_to_uint8, load_image_label_pair_dataset
 from scripts.dataset import RandomSubItemListDataset
 from scripts.single_tooth_segmentation.config_unetr import scale_intensity_range, IMAGE_SIZE, CLASS_COUNT, work_dir, \
     PRETRAINED_MODEL
 from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD
-from scripts.dataset import RandomSubItemListDataset
-from scripts import normalize_image_to_uint8, load_image_label_pair_dataset
 
 
 def validation(epoch_iterator_val, global_step):
@@ -59,6 +56,11 @@ def validation(epoch_iterator_val, global_step):
             )
             if step == 0:
                 slice_id = 60
+                for i in range(0, 90, 10):
+                    label = val_labels[0][0].cpu().numpy()[..., slice_id]
+                    if np.sum(label) > 0:
+                        slice_id = i
+                        break
                 image = val_inputs[0][0].cpu().numpy()[..., slice_id]
                 label = val_labels[0][0].cpu().numpy()[..., slice_id]
                 image = normalize_image_to_uint8(image)

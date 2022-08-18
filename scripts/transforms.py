@@ -321,9 +321,9 @@ class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTrans
             width, height, depth = box_end[0] - box_start[0], box_end[1] - box_start[1], box_end[2] - box_start[2]
             box_start = [box_start[0] - width // 2, box_start[1] - height // 2, box_start[2] - depth // 2]
             box_end = [box_end[0] + width // 2, box_end[1] + height // 2, box_end[2] + depth // 2]
-            x_offset = random.uniform(-width, width)
-            y_offset = random.uniform(-height, height)
-            z_offset = random.uniform(-depth, depth)
+            x_offset = random.uniform(-width // 2, width // 2)
+            y_offset = random.uniform(-height // 2, height // 2)
+            z_offset = random.uniform(-depth // 2, depth // 2)
             box_start = [int(box_start[0] + x_offset), int(box_start[1] + y_offset), int(box_start[2] + z_offset)]
             box_end = [int(box_end[0] + x_offset), int(box_end[1] + y_offset), int(box_end[2] + z_offset)]
             box_start = np.array(box_start)
