@@ -158,7 +158,7 @@ def validation(epoch_iterator_val):
             if step == 0:
                 slice_id = 60
                 for i in range(0, 90, 10):
-                    label = val_labels[0][0].cpu().numpy()[..., slice_id]
+                    label = val_labels[0][0].cpu().numpy()[..., i]
                     if np.sum(label) > 0:
                         slice_id = i
                         break
@@ -177,10 +177,6 @@ def validation(epoch_iterator_val):
                     pred = pre[..., slice_id]
                     if index == 1:
                         color = (255, 0, 0)
-                    elif index == 2:
-                        color = (0, 255, 0)
-                    elif index == 3:
-                        color = (0, 0, 255)
                     pred_image[pred.cpu().numpy() > 0] = color
                 log_image = np.hstack((gt_image, pred_image))
                 log_image = cv2.cvtColor(log_image, cv2.COLOR_BGR2RGB)
@@ -246,7 +242,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
     return global_step, dice_val_best, global_step_best
 
 
-max_iterations = 30000
+max_iterations = 60000
 eval_num = 500
 post_label = AsDiscrete(to_onehot=CLASS_COUNT)
 post_pred = AsDiscrete(argmax=True, to_onehot=CLASS_COUNT)
