@@ -32,24 +32,11 @@ from monai.transforms import (
 )
 from scripts import get_data_dir
 from scripts.dataset import RandomSubItemListDataset
-from scripts.single_tooth_segmentation.config import scale_intensity_range, IMAGE_SIZE, CLASS_COUNT, work_dir, \
+from scripts.single_tooth_segmentation.config_unetr import scale_intensity_range, IMAGE_SIZE, CLASS_COUNT, work_dir, \
     PRETRAINED_MODEL
 from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD
 from scripts.dataset import RandomSubItemListDataset
-
-def normalize_image_to_uint8(image):
-    """
-    Normalize image to uint8
-    Args:
-        image: numpy array
-    """
-    draw_img = image
-    if np.amin(draw_img) < 0:
-        draw_img -= np.amin(draw_img)
-    if np.amax(draw_img) > 1:
-        draw_img /= np.amax(draw_img)
-    draw_img = (255 * draw_img).astype(np.uint8)
-    return draw_img
+from scripts import normalize_image_to_uint8
 
 
 def validation(epoch_iterator_val, global_step):

@@ -68,9 +68,7 @@ def get_model(file: str) -> Path:
 
 def normalize_image_to_uint8(image):
     """
-    Normalize image to uint8
-    Args:
-        image: numpy array
+    图片正则化到uint8
     """
     draw_img = image
     if np.amin(draw_img) < 0:
