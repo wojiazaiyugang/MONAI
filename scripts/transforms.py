@@ -1,18 +1,22 @@
 import gc
 import json
 from copy import deepcopy
+from itertools import chain
 from pathlib import Path
 from typing import Mapping, Hashable, Dict, Any, Optional, Union, Sequence, List
-from itertools import chain
-import random
 
 import numpy as np
 import torch
+from torch.nn.functional import conv3d
 
-from monai.data import MetaTensor
 from monai.config import KeysCollection, NdarrayOrTensor, IndexSelection
+from monai.data import MetaTensor
 from monai.transforms import MapTransform, generate_spatial_bounding_box, InvertibleTransform, CropForeground, \
-    SpatialCrop, BorderPad, RandomizableTransform
+    SpatialCrop, BorderPad, RandomizableTransform, RandCropByPosNegLabel
+from monai.transforms.utils import map_binary_to_indices, generate_pos_neg_label_crop_centers
+from monai.transforms.utils_pytorch_numpy_unification import (
+    unravel_index,
+)
 from monai.utils import NumpyPadMode, PytorchPadMode, ensure_tuple_rep, ensure_tuple, ImageMetaKey as Key
 from monai.utils.enums import TraceKeys, TransformBackends
 
@@ -244,11 +248,12 @@ class MergeLabelValued(MapTransform):
         return d
 
 
-class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTransform):
+class PreprocessForegroundSamples(MapTransform):
     """
-    Crop samples with bounding box selected by foureground labels.
-
-    Ref: RandCropByPosNegLabel, CropForegroundd
+    预处理前景（牙齿）
+    1、牙齿腐蚀操作
+    2、计算牙齿的bbox
+    3、计算牙齿的正样本indexes
     """
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
@@ -299,6 +304,88 @@ class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTrans
 
             return fg_labels
 
+        def dilation3d(binary_image: torch.Tensor) -> torch.Tensor:
+            """
+            膨胀3D图像
+            :param binary_image:
+            :return:
+            """
+            kernel = torch.ones(size=[1, 1, 3, 3, 3], dtype=torch.float32)
+            return torch.clamp(conv3d(binary_image, kernel, padding=(1, 1, 1)), 0, 1)
+
+        d = dict(data)
+        bg_label = self.bg_label
+        fg_labels = find_foreground_labels(d[self.label_key], bg_label) if self.fg_labels is None else self.fg_labels
+
+        preprocess_data = {}  # 预处理结果
+
+        for i, fg_l in enumerate(fg_labels):
+            # label裁剪出来
+            label: MetaTensor = deepcopy(d[self.label_key])
+            # 清空背景，label置为为1
+            label[label != fg_l] = bg_label
+            label[label == fg_l] = 1
+            # 切换前景背景
+            label[label == 0] = 2
+            label[label == 1] = 0
+            label[label == 2] = 1
+            # 膨胀相反的label，相当于腐蚀label
+            label = dilation3d(torch.unsqueeze(label, dim=0))[0]
+            # 切换前景背景
+            # label_patch[label_patch == 0] = 2
+            # label_patch[label_patch == 1] = 0
+            # label_patch[label_patch == 2] = 1
+            label[label == 0] = 2
+            label[label == 1] = 0
+            label[label == 2] = 1
+
+            fg_indices_, bg_indices_ = map_binary_to_indices(label, None, 0)
+            preprocess_data[int(fg_l.numpy().tolist())] = {
+                "fg_indices_": fg_indices_.numpy(),  # 腐蚀后的label的前景indexes
+                "label_original_shape": label.size()[1:],  # 原始label的shape
+            }
+        d["preprocess_data"] = preprocess_data
+        return d
+
+
+class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTransform):
+    """
+    Crop samples with bounding box selected by foureground labels.
+
+    Ref: RandCropByPosNegLabel, CropForegroundd
+    """
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+            self,
+            keys: KeysCollection,
+            label_key: str,
+            fg_labels: Sequence = None,
+            bg_label: Union[int, float] = 0,
+            to_same_fg_label: Union[int, float] = None,
+            channel_indices: Optional[IndexSelection] = None,
+            margin: Union[Sequence[int], int] = 0,
+            mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
+            meta_keys: Optional[KeysCollection] = None,
+            meta_key_postfix: str = "meta_dict",
+            allow_missing_keys: bool = False
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        self.label_key = label_key
+        self.fg_labels = fg_labels
+        self.bg_label = bg_label
+        self.to_same_fg_label = to_same_fg_label
+
+        self.channel_indices = channel_indices
+        self.margin = margin
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
         class LabelSelector:
             def __init__(self, label) -> None:
                 self.label = label
@@ -308,26 +395,29 @@ class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTrans
 
         d = dict(data)
         bg_label = self.bg_label
-        fg_labels = find_foreground_labels(d[self.label_key], bg_label) if self.fg_labels is None else self.fg_labels
 
+        preprocess_data: dict = d.get("preprocess_data")
         # initialize returned list with shallow copy to preserve key ordering
-        results: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(len(fg_labels))]
+        results: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(len(preprocess_data.keys()))]
 
-        for i, fg_l in enumerate(fg_labels):
+        for i, fg_l in enumerate(preprocess_data.keys()):
             cropper = CropForeground(
                 select_fn=LabelSelector(fg_l), channel_indices=self.channel_indices, margin=self.margin,
             )
-            box_start, box_end = cropper.compute_bounding_box(img=d[self.label_key])
-            width, height, depth = box_end[0] - box_start[0], box_end[1] - box_start[1], box_end[2] - box_start[2]
-            box_start = [box_start[0] - width // 2, box_start[1] - height // 2, box_start[2] - depth // 2]
-            box_end = [box_end[0] + width // 2, box_end[1] + height // 2, box_end[2] + depth // 2]
-            x_offset = random.uniform(-width // 2, width // 2)
-            y_offset = random.uniform(-height // 2, height // 2)
-            z_offset = random.uniform(-depth // 2, depth // 2)
-            box_start = [int(box_start[0] + x_offset), int(box_start[1] + y_offset), int(box_start[2] + z_offset)]
-            box_end = [int(box_end[0] + x_offset), int(box_end[1] + y_offset), int(box_end[2] + z_offset)]
-            box_start = np.array(box_start)
-            box_end = np.array(box_end)
+            pd = preprocess_data[fg_l]
+            new_width, new_height, new_depth = 96, 96, 96
+            # label裁剪出来
+            centers = generate_pos_neg_label_crop_centers(spatial_size=[new_width, new_height, new_depth],
+                                                          num_samples=1,
+                                                          pos_ratio=1,
+                                                          label_spatial_shape=pd.get("label_original_shape"),
+                                                          fg_indices=pd.get("fg_indices_"),
+                                                          bg_indices=[None],
+                                                          rand_state=None,
+                                                          allow_smaller=False)
+            center = centers[0]
+            box_start = np.array([center[0] - new_width // 2, center[1] - new_height // 2, center[2] - new_depth // 2])
+            box_end = np.array([center[0] + new_width // 2, center[1] + new_height // 2, center[2] + new_depth // 2])
 
             # fill in the extra keys with unmodified data
             for key in set(d.keys()).difference(set(self.keys)):

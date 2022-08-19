@@ -27,9 +27,8 @@ from monai.transforms import (
 from scripts import get_data_dir
 from scripts.dataset import RandomSubItemListDataset
 from scripts.single_tooth_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, CLASS_COUNT
-from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD
+from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD, PreprocessForegroundSamples
 from scripts import normalize_image_to_uint8, load_image_label_pair_dataset
-
 
 tensorboard_writer = SummaryWriter(str(work_dir))
 num_samples = 4
@@ -43,6 +42,7 @@ train_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
+        PreprocessForegroundSamples(keys=["image", "label"], label_key="label"),
         CropForegroundSamples(keys=["image", "label"], label_key="label", margin=crop_margin),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
@@ -80,6 +80,7 @@ val_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
+        PreprocessForegroundSamples(keys=["image", "label"], label_key="label"),
         CropForegroundSamples(keys=["image", "label"], label_key="label", margin=crop_margin),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
