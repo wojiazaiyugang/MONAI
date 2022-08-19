@@ -340,10 +340,12 @@ class PreprocessForegroundSamples(MapTransform):
             label[label == 2] = 1
 
             fg_indices_, bg_indices_ = map_binary_to_indices(label, None, 0)
-            preprocess_data[int(fg_l.numpy().tolist())] = {
-                "fg_indices_": fg_indices_.numpy(),  # 腐蚀后的label的前景indexes
-                "label_original_shape": label.size()[1:],  # 原始label的shape
-            }
+            size = fg_indices_.size()[0]
+            if size > 0:  # 腐蚀后可能把所有的前景都清空了，这里要排除掉
+                preprocess_data[int(fg_l.numpy().tolist())] = {
+                    "fg_indices_": fg_indices_.numpy(),  # 腐蚀后的label的前景indexes
+                    "label_original_shape": label.size()[1:],  # 原始label的shape
+                }
         d["preprocess_data"] = preprocess_data
         return d
 
@@ -409,7 +411,7 @@ class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTrans
             # label裁剪出来
             centers = generate_pos_neg_label_crop_centers(spatial_size=[new_width, new_height, new_depth],
                                                           num_samples=1,
-                                                          pos_ratio=1,
+                                                          pos_ratio=2,  # 比例大于1，确保永远只会取到前景 # 可以，但没必要
                                                           label_spatial_shape=pd.get("label_original_shape"),
                                                           fg_indices=pd.get("fg_indices_"),
                                                           bg_indices=[None],
