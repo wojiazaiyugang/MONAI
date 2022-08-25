@@ -150,3 +150,5 @@ tests/testing_data/ultrasound.avi
 **/*.ply
 **/*.obj
 /models/
+**/*.pt
+**/*.nii.gz
