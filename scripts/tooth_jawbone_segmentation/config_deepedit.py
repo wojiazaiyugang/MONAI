@@ -5,7 +5,7 @@ from monai.transforms import ScaleIntensityRanged
 WORK_DIR = Path(__file__).parent.resolve().joinpath("logs").joinpath("deepedit").joinpath("2")
 
 IMAGE_SIZE = [128, 128, 128]  # 数据训练size
-CACHE_DIR = "/home/yujiannan/Projects/MONAI/data/temp/3/"
+CACHE_DIR = "/home/yujiannan/Projects/MONAI/data/temp/temp/"
 
 scale_intensity_range = ScaleIntensityRanged(
     keys=["image"],
