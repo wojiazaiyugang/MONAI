@@ -1,3 +1,14 @@
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,6 +22,7 @@ from monai.apps.deepedit.transforms import (
     AddGuidanceFromPointsDeepEditd,
     ResizeGuidanceMultipleLabelDeepEditd,
 )
+
 
 from monai.transforms import (
     Activationsd,
@@ -27,7 +39,6 @@ from monai.transforms import (
 )
 
 from monai.networks.nets import DynUNet
-
 
 def draw_points(guidance, slice_idx):
     if guidance is None:
@@ -76,7 +87,6 @@ def print_data(data):
         else:
             print('Data key: {} = {}'.format(k, d))
 
-
 # labels
 labels = {'spleen': 1,
           'background': 0
@@ -84,17 +94,19 @@ labels = {'spleen': 1,
 
 spatial_size = [128, 128, 128]
 
+
 model = DynUNet(
-    spatial_dims=3,
-    in_channels=len(labels) + 1,
-    out_channels=len(labels),
-    kernel_size=[3, 3, 3, 3, 3, 3],
-    strides=[1, 2, 2, 2, 2, [2, 2, 1]],
-    upsample_kernel_size=[2, 2, 2, 2, [2, 2, 1]],
-    norm_name="instance",
-    deep_supervision=False,
-    res_block=True,
-)
+            spatial_dims=3,
+            in_channels=len(labels) + 1,
+            out_channels=len(labels),
+            kernel_size=[3, 3, 3, 3, 3, 3],
+            strides=[1, 2, 2, 2, 2, [2, 2, 1]],
+            upsample_kernel_size=[2, 2, 2, 2, [2, 2, 1]],
+            norm_name="instance",
+            deep_supervision=False,
+            res_block=True,
+        )
+
 # Download data and model
 
 resource = "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/_image.nii.gz"
@@ -109,25 +121,15 @@ dst = "pretrained_deepedit_dynunet-final.pt"
 
 if not os.path.exists(dst):
     monai.apps.download_url(resource, dst)
+
 data = {
     'image': '_image.nii.gz',
-    'guidance': {'spleen': [
-        # [166, 180, 105], [166, 180, 145]
-        #
-        # [86, 180, 105], [86, 180, 145],
-        # [126, 180, 105], [126, 180, 145],
-        [186, 180, 80], [186, 180, 100]
-        # [10, 10, 10]
-    ], 'background': [
-        [66, 180, 105], [66, 180, 145],
-        [56, 180, 105], [56, 180, 145],
-    ]},
+    'guidance': {'spleen': [[66, 180, 105], [66, 180, 145]], 'background': []},
 }
 
-# for x in range(0, 400, 10):
-#     for y in range(0, 400, 10):
-#         for z in range(0, 400, 10):
-#             data["guidance"]["spleen"].append([x, y, z])
+for x in range(0, 500, 25):
+    for y in range(0, 500, 25):
+        data['guidance']['spleen'].append([x, y, 100])
 
 slice_idx = original_slice_idx = data['guidance']['spleen'][0][2]
 
@@ -204,11 +206,11 @@ for t in post_transforms:
     label = data['pred']
     print("{} => image shape: {}, pred shape: {}".format(tname, image.shape, label.shape))
 
-for i in range(10, 110, 10):
+for i in range(100, 110, 10):
     image = transformed_image[0, :, :, i]  # Taking the first channel which is the main image
     label = data['pred'][:, :, i]
-    if np.sum(label) == 0:
-        continue
+    # if np.sum(label) == 0:
+    #     continue
 
     print("Final PLOT:: {} => image shape: {}, pred shape: {}; min: {}, max: {}, sum: {}".format(
         i, image.shape, label.shape, np.min(label), np.max(label), np.sum(label)))
