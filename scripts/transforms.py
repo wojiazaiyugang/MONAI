@@ -3,7 +3,7 @@ import json
 from copy import deepcopy
 from itertools import chain
 from pathlib import Path
-from typing import Mapping, Hashable, Dict, Any, Optional, Union, Sequence, List
+from typing import Mapping, Hashable, Dict, Any, Optional, Union, Sequence, List, Tuple
 
 import numpy as np
 import torch
@@ -362,6 +362,7 @@ class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTrans
             self,
             keys: KeysCollection,
             label_key: str,
+            image_size: Tuple[int, int, int],
             fg_labels: Sequence = None,
             bg_label: Union[int, float] = 0,
             to_same_fg_label: Union[int, float] = None,
@@ -370,13 +371,14 @@ class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTrans
             mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
             meta_keys: Optional[KeysCollection] = None,
             meta_key_postfix: str = "meta_dict",
-            allow_missing_keys: bool = False
+            allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.label_key = label_key
         self.fg_labels = fg_labels
         self.bg_label = bg_label
         self.to_same_fg_label = to_same_fg_label
+        self.image_size = image_size
 
         self.channel_indices = channel_indices
         self.margin = margin
@@ -407,11 +409,11 @@ class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTrans
                 select_fn=LabelSelector(fg_l), channel_indices=self.channel_indices, margin=self.margin,
             )
             pd = preprocess_data[fg_l]
-            new_width, new_height, new_depth = 96, 96, 96
+            new_width, new_height, new_depth = self.image_size
             # label裁剪出来
             centers = generate_pos_neg_label_crop_centers(spatial_size=[new_width, new_height, new_depth],
                                                           num_samples=1,
-                                                          pos_ratio=2,  # 比例大于1，确保永远只会取到前景 # 可以，但没必要
+                                                          pos_ratio=1,  # 比例大于1，确保永远只会取到前景 # 可以，但没必要
                                                           label_spatial_shape=pd.get("label_original_shape"),
                                                           fg_indices=pd.get("fg_indices_"),
                                                           bg_indices=[None],
