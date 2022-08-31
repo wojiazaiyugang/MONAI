@@ -26,7 +26,7 @@ from monai.transforms import (
 )
 from scripts import get_data_dir
 from scripts.dataset import RandomSubItemListDataset
-from scripts.single_tooth_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, CLASS_COUNT
+from scripts.single_tooth_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, CLASS_COUNT, CACHE_DIR
 from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD, PreprocessForegroundSamples
 from scripts import normalize_image_to_uint8, load_image_label_pair_dataset
 
@@ -89,30 +89,30 @@ val_transforms = Compose(
     ]
 )
 
-dataset = load_image_label_pair_dataset(get_data_dir().joinpath("single_tooth_segmentation_spacing_0.5"))
+dataset = load_image_label_pair_dataset(get_data_dir().joinpath("single_tooth_segmentation_spacing_0.25"))
 train_count = int(len(dataset) * 0.95)
 train_files, val_files = dataset[:train_count], dataset[train_count:]
 train_ds = PersistentDataset(
     data=train_files,
     transform=train_transforms,
-    cache_dir="/home/yujiannan/Projects/MONAI/data/temp/2",
+    cache_dir=CACHE_DIR
 )
 # train_ds = Dataset(
 #     data=train_files,
 #     transform=train_transforms,
 # )
 
-train_ds = RandomSubItemListDataset(train_ds, max_len=4)
+train_ds = RandomSubItemListDataset(train_ds, max_len=1)
 val_ds = PersistentDataset(
     data=val_files,
     transform=val_transforms,
-    cache_dir="/home/yujiannan/Projects/MONAI/data/temp/2",
+    cache_dir=CACHE_DIR,
 )
 # val_ds = Dataset(
 #     data=val_files,
 #     transform=val_transforms,
 # )
-val_ds = RandomSubItemListDataset(val_ds, max_len=3)
+val_ds = RandomSubItemListDataset(val_ds, max_len=1)
 train_loader = DataLoader(
     train_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=False
 )
@@ -243,7 +243,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
     return global_step, dice_val_best, global_step_best
 
 
-max_iterations = 60000
+max_iterations = 120000
 eval_num = 500
 post_label = AsDiscrete(to_onehot=CLASS_COUNT)
 post_pred = AsDiscrete(argmax=True, to_onehot=CLASS_COUNT)
