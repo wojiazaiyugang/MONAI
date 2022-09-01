@@ -22,11 +22,12 @@ from monai.transforms import (
     RandFlipd,
     RandShiftIntensityd,
     RandRotate90d,
-    EnsureTyped, MapLabelValued, ResizeWithPadOrCropd,
+    EnsureTyped, MapLabelValued, ResizeWithPadOrCropd, DeleteItemsd
 )
 from scripts import get_data_dir
 from scripts.dataset import RandomSubItemListDataset
-from scripts.single_tooth_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, CLASS_COUNT, CACHE_DIR
+from scripts.single_tooth_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
+    CLASS_COUNT, CACHE_DIR
 from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD, PreprocessForegroundSamples
 from scripts import normalize_image_to_uint8, load_image_label_pair_dataset
 
@@ -44,6 +45,7 @@ train_transforms = Compose(
         scale_intensity_range,
         PreprocessForegroundSamples(keys=["image", "label"], label_key="label"),
         CropForegroundSamples(keys=["image", "label"], label_key="label", margin=crop_margin, image_size=IMAGE_SIZE),
+        DeleteItemsd(keys="preprocess_data"),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
@@ -82,6 +84,7 @@ val_transforms = Compose(
         scale_intensity_range,
         PreprocessForegroundSamples(keys=["image", "label"], label_key="label"),
         CropForegroundSamples(keys=["image", "label"], label_key="label", margin=crop_margin, image_size=IMAGE_SIZE),
+        DeleteItemsd(keys="preprocess_data"),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
@@ -97,10 +100,6 @@ train_ds = PersistentDataset(
     transform=train_transforms,
     cache_dir=CACHE_DIR
 )
-# train_ds = Dataset(
-#     data=train_files,
-#     transform=train_transforms,
-# )
 
 train_ds = RandomSubItemListDataset(train_ds, max_len=1)
 val_ds = PersistentDataset(
@@ -108,10 +107,7 @@ val_ds = PersistentDataset(
     transform=val_transforms,
     cache_dir=CACHE_DIR,
 )
-# val_ds = Dataset(
-#     data=val_files,
-#     transform=val_transforms,
-# )
+
 val_ds = RandomSubItemListDataset(val_ds, max_len=1)
 train_loader = DataLoader(
     train_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=False
@@ -143,7 +139,7 @@ def validation(epoch_iterator_val):
         for step, batch in enumerate(epoch_iterator_val):
             val_inputs, val_labels = (batch["image"].cuda(), batch["label"].cuda())
             with torch.cuda.amp.autocast():
-                val_outputs = sliding_window_inference(val_inputs, (96, 96, 96), 4, model)
+                val_outputs = sliding_window_inference(val_inputs, IMAGE_SIZE, 4, model)
             val_labels_list = decollate_batch(val_labels)
             val_labels_convert = [
                 post_label(val_label_tensor) for val_label_tensor in val_labels_list

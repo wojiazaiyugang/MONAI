@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-from typing import List
+from typing import List, Dict
 
 
 def get_project_dir() -> Path:
@@ -80,7 +80,7 @@ def normalize_image_to_uint8(image):
     return draw_img
 
 
-def load_image_label_pair_dataset(d: Path) -> List[dict]:
+def load_image_label_pair_dataset(d: Path) -> List[Dict[str, str]]:
     """
     加载数据集
     数据是*image*格式
