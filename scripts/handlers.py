@@ -1,11 +1,16 @@
 import cv2
 import numpy as np
+import random
 from ignite.engine import Engine
 from ignite.engine import Events
 
 from torch.utils.tensorboard import SummaryWriter
 
 from scripts import normalize_image_to_uint8
+
+colors = []
+for i in range(33):
+    colors.append([random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)])
 
 
 class ShowValResultHandler:
@@ -26,19 +31,20 @@ class ShowValResultHandler:
 
     def __call__(self, engine: Engine) -> None:
         data = engine.state.batch
-        slice = 90
+        slice = None
+        for slice in range(0, 160, 10):
+            label = data[0]["label"][0][..., slice]
+            if int(label.unique().size()[0]) > 12:
+                break
         image = data[0]["image"][0][..., slice]
         label = data[0]["label"][0][..., slice]
         pred = data[0]["pred"][0][..., slice]
         image = normalize_image_to_uint8(image)
         gt_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
         pred_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        gt_image[label == 1] = (255, 0, 0)
-        gt_image[label == 2] = (0, 255, 0)
-        gt_image[label == 3] = (0, 0, 255)
-        pred_image[pred == 1] = (255, 0, 0)
-        pred_image[pred == 2] = (0, 255, 0)
-        pred_image[pred == 3] = (0, 0, 255)
+        for label_index in range(1, 33):
+            gt_image[label == label_index] = colors[label_index]
+            pred_image[pred == label_index] = colors[label_index]
         log_image = np.hstack((gt_image, pred_image))
         log_image = cv2.cvtColor(log_image, cv2.COLOR_BGR2RGB)
         self.writer.add_image(tag="val_image",

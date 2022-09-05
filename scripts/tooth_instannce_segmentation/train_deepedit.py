@@ -11,16 +11,18 @@
 
 import argparse
 import distutils.util
+import glob
 import logging
 import os
 import sys
 import time
-import glob
+from pathlib import Path
 
 import torch
 import torch.distributed as dist
-from monai.apps.deepedit.interaction import Interaction
+from torch.utils.tensorboard import SummaryWriter
 
+from monai.apps.deepedit.interaction import Interaction
 from monai.apps.deepedit.transforms import (
     AddGuidanceSignalDeepEditd,
     AddRandomGuidanceDeepEditd,
@@ -32,7 +34,7 @@ from monai.apps.deepedit.transforms import (
 )
 from monai.data import partition_dataset
 from monai.data.dataloader import DataLoader
-from monai.data.dataset import PersistentDataset, Dataset
+from monai.data.dataset import PersistentDataset
 from monai.engines import SupervisedEvaluator, SupervisedTrainer
 from monai.handlers import (
     CheckpointSaver,
@@ -40,11 +42,9 @@ from monai.handlers import (
     MeanDice,
     StatsHandler,
     TensorBoardStatsHandler,
-TensorBoardImageHandler,
     ValidationHandler,
     from_engine
 )
-from torch.utils.tensorboard import SummaryWriter
 from monai.inferers import SimpleInferer
 from monai.losses import DiceCELoss
 from monai.networks.nets import DynUNet, UNETR
@@ -55,19 +55,16 @@ from monai.transforms import (
     Compose,
     LoadImaged,
     Orientationd,
-    RandFlipd,
     RandShiftIntensityd,
-    RandRotate90d,
     Resized,
-    ScaleIntensityRanged,
     ToNumpyd,
-    ToTensord, RandCropByPosNegLabeld,
-FromMetaTensord,
-CropForegroundd
+    ToTensord
 )
 from monai.utils import set_determinism
-from scripts.tooth_jawbone_segmentation.config_deepedit import scale_intensity_range, IMAGE_SIZE, CACHE_DIR, WORK_DIR
 from scripts.handlers import ShowValResultHandler
+from scripts import load_image_label_pair_dataset
+from scripts.tooth_instannce_segmentation.config_deepedit import scale_intensity_range, IMAGE_SIZE, CACHE_DIR, WORK_DIR
+
 
 def get_network(network, labels, spatial_size):
     # Network
@@ -106,19 +103,12 @@ def get_pre_transforms(labels, spatial_size):
         NormalizeLabelsInDatasetd(keys="label", label_names=labels),
         AddChanneld(keys=("image", "label")),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
-        # This transform may not work well for MR images
         scale_intensity_range,
-        # RandFlipd(keys=("image", "label"), spatial_axis=[0], prob=0.10),
-        # RandFlipd(keys=("image", "label"), spatial_axis=[1], prob=0.10),
-        # RandFlipd(keys=("image", "label"), spatial_axis=[2], prob=0.10),
-        # RandRotate90d(keys=("image", "label"), prob=0.10, max_k=3),
         RandShiftIntensityd(keys="image", offsets=0.10, prob=0.50),
         Resized(keys=("image", "label"), spatial_size=spatial_size, mode=("area", "nearest")),
-        # Transforms for click simulation
         FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
         AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
         AddGuidanceSignalDeepEditd(keys="image", guidance="guidance"),
-        #
         ToTensord(keys=("image", "label")),
     ]
 
@@ -139,7 +129,6 @@ def get_click_transforms():
             probability="probability",
         ),
         AddGuidanceSignalDeepEditd(keys="image", guidance="guidance"),
-        #
         ToTensord(keys=("image", "label")),
     ]
 
@@ -154,7 +143,6 @@ def get_post_transforms(labels):
             argmax=(True, False),
             to_onehot=(len(labels), len(labels)),
         ),
-        # This transform is to check dice score per segment/label
         SplitPredsLabeld(keys="pred"),
     ]
     return Compose(t)
@@ -163,11 +151,7 @@ def get_post_transforms(labels):
 def get_loaders(args, pre_transforms):
     multi_gpu = args.multi_gpu
     local_rank = args.local_rank
-
-    all_images = sorted(glob.glob(os.path.join(args.input, "*image*.nii.gz")))
-    all_labels = sorted(glob.glob(os.path.join(args.input, "*label*.nii.gz")))
-    datalist = [{"image": image_name, "label": label_name} for image_name, label_name in zip(all_images, all_labels)]
-
+    datalist = load_image_label_pair_dataset(Path(args.input))
     datalist = datalist[0: args.limit] if args.limit else datalist
     total_l = len(datalist)
 
@@ -406,7 +390,7 @@ def main():
     parser.add_argument(
         "-i",
         "--input",
-        default="/home/yujiannan/Projects/MONAI/scripts/tooth_instannce_segmentation",
+        default="/home/yujiannan/Projects/MONAI/data/tooth_instannce_segmentation",
     )
     parser.add_argument("-o", "--output", default=str(WORK_DIR))
 

@@ -22,7 +22,7 @@ from monai.transforms import (
     ToNumpyd,
     Activationsd,
     AsDiscreted,
-    Resized
+    Resized, ScaleIntensityRanged
 )
 
 max_epochs = 1
@@ -79,28 +79,18 @@ def print_data(data):
         else:
             print('Data key: {} = {}'.format(k, d))
 
-# Download data and model
-
-resource = "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/_image.nii.gz"
-dst = "_image.nii.gz"
-
-if not os.path.exists(dst):
-    monai.apps.download_url(resource, dst)
-
-resource = "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/deepgrow_3d.ts"
-dst = "deepgrow_3d.ts"
-if not os.path.exists(dst):
-    monai.apps.download_url(resource, dst)
 
 # Pre Processing
 roi_size = [256, 256]
-model_size = [128, 192, 192]
-pixdim = (1.0, 1.0, 1.0)
+model_size = [128, 128, 128]
+pixdim = (0.25, 0.25, 0.25)
 dimensions = 3
 
 data = {
-    'image': '_image.nii.gz',
-    'foreground': [[266, 180, 105]],
+    'image': '/home/yujiannan/Projects/XiaoLiuInfer/scripts/data/0.25.nii.gz',
+    'foreground': [[201, 385, 176],
+                   [377, 385, 176]
+                   ],
     'background': [],
 }
 # for x in range(0, 200, 25):
@@ -120,7 +110,14 @@ pre_transforms = [
     SpatialCropGuidanced(keys='image', guidance='guidance', spatial_size=roi_size),
     Resized(keys='image', spatial_size=model_size, mode='area'),
     ResizeGuidanced(guidance='guidance', ref_image='image'),
-    NormalizeIntensityd(keys='image', subtrahend=208.0, divisor=388.0),
+    ScaleIntensityRanged(
+        keys=["image"],
+        a_min=-500,
+        a_max=3300,
+        b_min=0.0,
+        b_max=1.0,
+        clip=True,
+    ),
     AddGuidanceSignald(image='image', guidance='guidance'),
     EnsureTyped(keys='image')
 ]
@@ -161,7 +158,7 @@ for i in range(image.shape[1]):
     # show_image(image[0][i], None, guidance, i)
 
 # Evaluation
-model_path = 'deepgrow_3d.ts'
+model_path = '/home/yujiannan/Projects/MONAI/scripts/tooth_jawbone_segmentation/logs/deepgrow/1/model-final.ts'
 model = jit.load(model_path)
 model.cuda()
 model.eval()
@@ -211,8 +208,7 @@ for t in post_transforms:
             tname, image.shape, label.shape, np.min(label), np.max(label), np.sum(label)))
         # show_image(image, label)
 
-for i in range(pred.shape[0]):
-    i = 100
+for i in range(0, pred.shape[0], 20):
     image = original_image[:, :, i]
     label = pred[i, :, :]
     if np.sum(label) == 0:
@@ -221,7 +217,6 @@ for i in range(pred.shape[0]):
     print("Final PLOT:: {} => image shape: {}, pred shape: {}; min: {}, max: {}, sum: {}".format(
         i, image.shape, label.shape, np.min(label), np.max(label), np.sum(label)))
     show_image(image, label)
-    break
 
 pred = data['pred']
 meta_data = data['pred_meta_dict']
