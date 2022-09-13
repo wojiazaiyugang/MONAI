@@ -386,7 +386,7 @@ def main():
 
     parser.add_argument("-s", "--seed", type=int, default=36)
 
-    parser.add_argument("-n", "--network", default="dynunet", choices=["dynunet", "unetr"])
+    parser.add_argument("-n", "--network", default="unetr", choices=["dynunet", "unetr"])
     parser.add_argument(
         "-i",
         "--input",
@@ -395,7 +395,7 @@ def main():
     parser.add_argument("-o", "--output", default=str(WORK_DIR))
 
     parser.add_argument("-g", "--use_gpu", type=strtobool, default="true")
-    parser.add_argument("-a", "--amp", type=strtobool, default="false")
+    parser.add_argument("-a", "--amp", type=strtobool, default="true")
 
     parser.add_argument("-e", "--epochs", type=int, default=200)
     parser.add_argument("-x", "--split", type=float, default=0.95)
