@@ -310,7 +310,7 @@ class PreprocessForegroundSamples(MapTransform):
             :param binary_image:
             :return:
             """
-            kernel = torch.ones(size=[1, 1, 3, 3, 3], dtype=torch.float32)
+            kernel = torch.ones(size=[1, 1, 5, 5, 5], dtype=torch.float32)
             return torch.clamp(conv3d(binary_image, kernel, padding=(1, 1, 1)), 0, 1)
 
         d = dict(data)
@@ -352,9 +352,8 @@ class PreprocessForegroundSamples(MapTransform):
 
 class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTransform):
     """
-    Crop samples with bounding box selected by foureground labels.
-
-    Ref: RandCropByPosNegLabel, CropForegroundd
+    搭配PreprocessForegroundSamples使用，从预处理后的前景中随机选一个点，然后crop固定size的patch出来
+    通常用于click_XX_segmentation的训练
     """
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
@@ -452,6 +451,139 @@ class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTrans
                 results[i][meta_key][Key.PATCH_INDEX] = i  # type: ignore
                 results[i][key].meta[Key.PATCH_INDEX] = i  # 更新兼容meta tensor的patch index
         # print(f"裁剪样本数量: {d['image_meta_dict']['filename_or_obj']} {len(results)}")
+        return results
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.asarray(transform[TraceKeys.ORIG_SIZE])
+            cur_size = np.asarray(d[key].shape[1:])
+            extra_info = transform[TraceKeys.EXTRA_INFO]
+            box_start = np.asarray(extra_info["box_start"])
+            box_end = np.asarray(extra_info["box_end"])
+            # first crop the padding part
+            roi_start = np.maximum(-box_start, 0)
+            roi_end = cur_size - np.maximum(box_end - orig_size, 0)
+
+            d[key] = SpatialCrop(roi_start=roi_start, roi_end=roi_end)(d[key])
+
+            # update bounding box to pad
+            pad_to_start = np.maximum(box_start, 0)
+            pad_to_end = orig_size - np.minimum(box_end, orig_size)
+            # interleave mins and maxes
+            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
+            # second pad back the original size
+            d[key] = BorderPad(pad)(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
+        return d
+
+
+class CropForegroundSamplesByBBox(MapTransform, InvertibleTransform):
+    """
+    根据label确定前景，然后根据前景的bbox裁剪出来
+    """
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+            self,
+            keys: KeysCollection,
+            label_key: str,
+            fg_labels: Sequence = None,
+            bg_label: Union[int, float] = 0,
+            to_same_fg_label: Union[int, float] = None,
+            channel_indices: Optional[IndexSelection] = None,
+            margin: Union[Sequence[int], int] = 0,
+            mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
+            meta_keys: Optional[KeysCollection] = None,
+            meta_key_postfix: str = "meta_dict",
+            allow_missing_keys: bool = False
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        self.label_key = label_key
+        self.fg_labels = fg_labels
+        self.bg_label = bg_label
+        self.to_same_fg_label = to_same_fg_label
+
+        self.channel_indices = channel_indices
+        self.margin = margin
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+        def find_foreground_labels(label: NdarrayOrTensor, bg_label: Union[int, float] = 0):
+            all_labels = None
+            if isinstance(label, np.ndarray):
+                all_labels = np.unique(label)
+            elif isinstance(label, torch.Tensor):
+                all_labels = torch.unique(label)
+            else:
+                raise RuntimeError("Unsupported label type: ", type(label))
+
+            fg_labels = []
+            for i in range(all_labels.shape[0]):
+                if all_labels[i] == bg_label:
+                    continue
+                fg_labels.append(all_labels[i])
+
+            return fg_labels
+
+        class LabelSelector:
+            def __init__(self, label) -> None:
+                self.label = label
+
+            def __call__(self, img) -> Any:
+                return img == self.label
+
+        d = dict(data)
+        bg_label = self.bg_label
+        fg_labels = find_foreground_labels(d[self.label_key], bg_label) if self.fg_labels is None else self.fg_labels
+
+        # initialize returned list with shallow copy to preserve key ordering
+        results: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(len(fg_labels))]
+
+        for i, fg_l in enumerate(fg_labels):
+            cropper = CropForeground(
+                select_fn=LabelSelector(fg_l), channel_indices=self.channel_indices, margin=self.margin,
+            )
+            box_start, box_end = cropper.compute_bounding_box(img=d[self.label_key])
+
+            # fill in the extra keys with unmodified data
+            for key in set(d.keys()).difference(set(self.keys)):
+                results[i][key] = deepcopy(d[key])
+
+            for key, m in self.key_iterator(d, self.mode):
+                patch = cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m)
+
+                # When crop label volume, clean the other labels in current crop patch
+                if key == self.label_key:
+                    # Warning, the CropForeground may copy(if padding) or inference original volume as result patch
+                    # Warning, we should copy patch first, or it will modify and corrupt original label values
+                    patch = deepcopy(patch)
+                    patch[patch != fg_l] = bg_label
+                    if self.to_same_fg_label is not None:
+                        patch[patch == fg_l] = self.to_same_fg_label
+
+                results[i][key] = patch
+                orig_size = d[key].shape[1:]
+                self.push_transform(results[i], key, extra_info={"box_start": box_start, "box_end": box_end},
+                                    orig_size=orig_size)
+
+            # add `patch_index` to the meta data
+            for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
+                if meta_key not in results[i]:
+                    results[i][meta_key] = {}  # type: ignore
+                results[i][meta_key][Key.PATCH_INDEX] = i  # type: ignore
+                results[i][key].meta[Key.PATCH_INDEX] = i  # 更新兼容meta tensor的patch index
+
         return results
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:

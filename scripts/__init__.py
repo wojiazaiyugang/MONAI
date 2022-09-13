@@ -28,6 +28,10 @@ def get_data_dir() -> Path:
     return get_project_dir().joinpath("data")
 
 
+def get_cache_data_dir() -> Path:
+    return get_data_dir().joinpath("temp")
+
+
 def get_scripts_dir() -> Path:
     """
     获取脚本目录
