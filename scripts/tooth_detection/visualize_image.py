@@ -8,6 +8,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import random
 
 import cv2
 import numpy as np
@@ -53,13 +54,19 @@ def visualize_one_xy_slice_in_3d_image(gt_boxes, image, pred_boxes, gt_box_index
 
     # draw GT box, notice that cv2 uses Cartesian indexing instead of Matrix indexing.
     # so the xy position needs to be transposed.
-    cv2.rectangle(
-        draw_img,
-        pt1=(draw_box[1], draw_box[0]),
-        pt2=(draw_box[4], draw_box[3]),
-        color=(0, 255, 0),  # green for GT
-        thickness=1,
-    )
+    for box_index in range(gt_boxes.shape[0]):
+        # gt太多了 随机显示一部分
+        if random.random() < 0.5:
+            continue
+        draw_box = gt_boxes[box_index, :]
+        draw_box = np.round(draw_box).astype(int).tolist()
+        cv2.rectangle(
+            draw_img,
+            pt1=(draw_box[1], draw_box[0]),
+            pt2=(draw_box[4], draw_box[3]),
+            color=(0, 255, 0),  # green for GT
+            thickness=1,
+        )
     # draw predicted boxes
     for bbox in pred_boxes:
         bbox = np.round(bbox).astype(int).tolist()

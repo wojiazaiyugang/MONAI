@@ -37,11 +37,12 @@ from monai.apps.detection.networks.retinanet_network import (
     resnet_fpn_feature_extractor,
 )
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
-from monai.data import DataLoader, Dataset, box_utils, load_decathlon_datalist
+from monai.data import DataLoader, Dataset, box_utils, load_decathlon_datalist, PersistentDataset
 from monai.data.utils import no_collation
 from monai.networks.nets import resnet
 from monai.transforms import ScaleIntensityRanged
 from monai.utils import set_determinism
+from scripts.tooth_detection.config import CACHE_DIR
 
 
 def main():
@@ -83,8 +84,8 @@ def main():
     # 1. define transform
     intensity_transform = ScaleIntensityRanged(
         keys=["image"],
-        a_min=300,
-        a_max=3300,
+        a_min=0,
+        a_max=4000,
         b_min=0.0,
         b_max=1.0,
         clip=True,
@@ -130,37 +131,55 @@ def main():
     # print(f"数据共计{len(train_data)}个")
     # train_data = train_data[:2]
 
-    d = Path("/home/yujiannan/Projects/MONAI/data/teeth_detection_spacing_0.25_0.25_0.25")
-    for file in d.iterdir():
-        if not file.name.endswith(".txt"):
-            continue
-        with open(file, "r") as f:
-            label = json.load(f)
-        box = label["bbox"]
-        train_data.append({
-            "box": box,
-            "image": d.joinpath(file.name[:-4]),
-            "label": [0 for _ in range(len(box))]
-        })
-    # train_data = train_data[40:]
-    train_ds = Dataset(
+    # d = Path("/home/yujiannan/Projects/MONAI/data/teeth_detection_spacing_0.25_0.25_0.25")
+    # for file in d.iterdir():
+    #     if not file.name.endswith(".txt"):
+    #         continue
+    #     with open(file, "r") as f:
+    #         label = json.load(f)
+    #     box = label["bbox"]
+    #     train_data.append({
+    #         "box": box,
+    #         "image": d.joinpath(file.name[:-4]),
+    #         "label": [0 for _ in range(len(box))]
+    #     })
+    dataset_dir = Path("/home/yujiannan/Projects/MONAI/data/tooth_instannce_segmentation")
+    for data_info_file in dataset_dir.glob("*info*txt*"):
+        with open(data_info_file, "r") as f:
+            data_info = json.load(f)
+        box, label = [], []
+        for tooth_label, tooth_info in data_info.items():
+            if "bbox_world" not in tooth_info:
+                continue
+            box.append(tooth_info["bbox_world"])
+            label.append(int(tooth_label)-1)
+        if box:
+            train_data.append({
+                "box": box,
+                "image": str(data_info_file.parent.joinpath(data_info_file.name.replace(".info.txt", ".image.nii.gz"))),
+                "label": label
+            })
+    train_data = train_data[:20]
+    train_ds = PersistentDataset(
         data=train_data[: int(0.95 * len(train_data))],
         transform=train_transforms,
+        cache_dir=CACHE_DIR
     )
     train_loader = DataLoader(
         train_ds,
-        batch_size=1,
+        batch_size=8,
         shuffle=True,
-        num_workers=8,
+        num_workers=0,
         pin_memory=torch.cuda.is_available(),
         collate_fn=no_collation,
-        persistent_workers=True,
+        # persistent_workers=True,
     )
 
     # create a validation data loader
-    val_ds = Dataset(
+    val_ds = PersistentDataset(
         data=train_data[int(0.95 * len(train_data)):],
         transform=val_transforms,
+        cache_dir=CACHE_DIR
     )
     val_loader = DataLoader(
         val_ds,
@@ -168,7 +187,7 @@ def main():
         num_workers=4,
         pin_memory=torch.cuda.is_available(),
         collate_fn=no_collation,
-        persistent_workers=True,
+        # persistent_workers=True,
     )
 
     # 3. build model
@@ -264,7 +283,7 @@ def main():
     tensorboard_writer = SummaryWriter(args.tfevent_path)
 
     # 5. train
-    val_interval = 5  # do validation every val_interval epochs
+    val_interval = 1  # do validation every val_interval epochs
     coco_metric = COCOMetric(classes=["nodule"], iou_list=[0.1], max_detection=[100])
     best_val_epoch_metric = 0.0
     best_val_epoch = -1  # the epoch that gives best validation metrics
@@ -316,6 +335,8 @@ def main():
                 scaler.step(optimizer)
                 scaler.update()
             else:
+                for i in range(4):
+                    print(targets[i]["label"].cpu().unique())
                 outputs = detector(inputs, targets)
                 loss = w_cls * outputs[detector.cls_key] + outputs[detector.box_reg_key]
                 loss.backward()

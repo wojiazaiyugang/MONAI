@@ -23,7 +23,7 @@ from monai.transforms import (
 )
 from scripts import normalize_image_to_uint8, load_image_label_pair_dataset
 from scripts.click_single_tooth_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
-    CLASS_COUNT, CACHE_DIR, LOAD_FROM, DATASET
+    CLASS_COUNT, CACHE_DIR, LOAD_FROM, DATASET, LOAD_FROM_DICE
 from scripts.dataset import RandomSubItemListDataset
 from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD, PreprocessForegroundSamples
 
@@ -110,7 +110,10 @@ model = SwinUNETR(
 ).to(device)
 if LOAD_FROM:
     model.load_state_dict(torch.load(str(LOAD_FROM)))
+    dice_val_best = LOAD_FROM_DICE
     print(f"预训练模型加载成功: {LOAD_FROM}")
+else:
+    dice_val_best = 0.0
 
 torch.backends.cudnn.benchmark = True
 loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
@@ -205,7 +208,6 @@ post_label = AsDiscrete(to_onehot=CLASS_COUNT)
 post_pred = AsDiscrete(argmax=True, to_onehot=CLASS_COUNT)
 dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 global_step = 0
-dice_val_best = 0.0
 global_step_best = 0
 epoch_loss_values = []
 metric_values = []

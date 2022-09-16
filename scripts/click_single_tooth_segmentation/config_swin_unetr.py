@@ -3,7 +3,7 @@ from pathlib import Path
 from monai.transforms import ScaleIntensityRanged
 
 log_dir = Path(__file__).parent.resolve().joinpath("logs").joinpath("swin_unetr")
-work_dir = log_dir.joinpath("11")
+work_dir = log_dir.joinpath("12")
 
 # IMAGE_SIZE = (96, 96, 96)  # 数据训练size
 IMAGE_SIZE = (160, 160, 160)  # 数据训练size
@@ -19,5 +19,5 @@ scale_intensity_range = ScaleIntensityRanged(
 CLASS_COUNT = 2  # 分类类别，0-背景 1-牙齿
 DATASET = Path("/home/yujiannan/Projects/MONAI/data/tooth_instannce_segmentation")
 CACHE_DIR = "/home/yujiannan/Projects/MONAI/data/temp/click_single_tooth_segmentation"
-LOAD_FROM = log_dir.joinpath("10").joinpath("best_metric_model.pth")
+LOAD_FROM = log_dir.joinpath("11").joinpath("best_metric_model.pth")
 LOAD_FROM_DICE = 0.985

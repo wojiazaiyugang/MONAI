@@ -17,7 +17,8 @@ from monai.transforms import (
     RandRotated,
     RandScaleIntensityd,
     RandShiftIntensityd,
-    SaveImaged
+    SaveImaged,
+Spacingd
 )
 from monai.apps.detection.transforms.dictionary import (
     AffineBoxToImageCoordinated,
@@ -92,7 +93,6 @@ def generate_detection_train_transform(image_key, box_key, label_key, gt_box_mod
     Return:
         training transform for detection
     """
-    amp = True
     if amp:
         compute_dtype = torch.float16
     else:
@@ -102,6 +102,7 @@ def generate_detection_train_transform(image_key, box_key, label_key, gt_box_mod
         [
             LoadImaged(keys=[image_key], meta_key_postfix="meta_dict"),
             EnsureChannelFirstd(keys=[image_key]),
+            Spacingd(keys=[image_key], pixdim=(0.5, 0.5, 0.5), mode=("bilinear")),
             EnsureTyped(keys=[image_key, box_key], dtype=torch.float32),
             EnsureTyped(keys=[label_key], dtype=torch.long),
             Orientationd(keys=[image_key], axcodes="RAS"),
@@ -231,7 +232,6 @@ def generate_detection_val_transform(image_key, box_key, label_key, gt_box_mode,
     Return:
         validation transform for detection
     """
-    amp = True
     if amp:
         compute_dtype = torch.float16
     else:
@@ -241,6 +241,7 @@ def generate_detection_val_transform(image_key, box_key, label_key, gt_box_mode,
         [
             LoadImaged(keys=[image_key], meta_key_postfix="meta_dict"),
             EnsureChannelFirstd(keys=[image_key]),
+            Spacingd(keys=[image_key], pixdim=(0.5, 0.5, 0.5), mode=("bilinear")),
             EnsureTyped(keys=[image_key, box_key], dtype=torch.float32),
             EnsureTyped(keys=[label_key], dtype=torch.long),
             Orientationd(keys=[image_key], axcodes="RAS"),
