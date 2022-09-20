@@ -93,14 +93,14 @@ train_ds = PersistentDataset(
     cache_dir=CACHE_DIR
 )
 
-train_ds = RandomSubItemListDataset(train_ds, max_len=8)
+train_ds = RandomSubItemListDataset(train_ds, max_len=2)
 val_ds = PersistentDataset(
     data=val_files,
     transform=val_transforms,
     cache_dir=CACHE_DIR,
 )
 
-val_ds = RandomSubItemListDataset(val_ds, max_len=2)
+val_ds = RandomSubItemListDataset(val_ds, max_len=1)
 train_loader = DataLoader(train_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=False)
 val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=False)
 
