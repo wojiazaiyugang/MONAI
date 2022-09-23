@@ -69,7 +69,6 @@ def main():
     else:
         compute_dtype = torch.float32
 
-    monai.config.print_config()
     torch.backends.cudnn.benchmark = True
     torch.set_num_threads(4)
 
@@ -111,25 +110,8 @@ def main():
         affine_lps_to_ras=False,
         amp=amp,
     )
-
-    # 2. prepare training data
-    # create a training data loader
-    # train_data = load_decathlon_datalist(
-    #     args.data_list_file_path,
-    #     is_segmentation=True,
-    #     data_list_key="training",
-    #     base_dir=args.data_base_dir,
-    # )
     train_data = []
-    # dataset_dir = Path("/media/3TB/data/xiaoliutech/relu_cbct_respacing")
-    # for data_dir in dataset_dir.iterdir():
-    #     train_data.append({
-    #         "image": str(data_dir.joinpath("image.nii.gz")),
-    #         "Cbct_lower_teeth": str(data_dir.joinpath("Cbct_lower_teeth.nii.gz")),
-    #         "Cbct_upper_teeth": str(data_dir.joinpath("Cbct_upper_teeth.nii.gz"))
-    #     })
-    # print(f"数据共计{len(train_data)}个")
-    # train_data = train_data[:2]
+
 
     # d = Path("/home/yujiannan/Projects/MONAI/data/teeth_detection_spacing_0.25_0.25_0.25")
     # for file in d.iterdir():
@@ -144,22 +126,21 @@ def main():
     #         "label": [0 for _ in range(len(box))]
     #     })
     dataset_dir = Path("/home/yujiannan/Projects/MONAI/data/tooth_instannce_segmentation")
-    for data_info_file in dataset_dir.glob("*info*txt*"):
+    for data_info_file in dataset_dir.glob("*.txt"):
         with open(data_info_file, "r") as f:
             data_info = json.load(f)
         box, label = [], []
-        for tooth_label, tooth_info in data_info.items():
-            if "bbox_world" not in tooth_info:
-                continue
-            box.append(tooth_info["bbox_world"])
-            label.append(int(tooth_label)-1)
-        if box:
-            train_data.append({
-                "box": box,
-                "image": str(data_info_file.parent.joinpath(data_info_file.name.replace(".info.txt", ".image.nii.gz"))),
-                "label": label
-            })
-    train_data = train_data[:20]
+        for tooth_label, b in data_info.items():
+            # b = tooth_info["bbox_world"]
+            box.append(((b[0]+b[3])/2, (b[1]+b[4])/2, (b[2]+b[5])/2, b[3] - b[0], b[4]-b[1], b[5]-b[2]))
+            # box.append(b)
+            label.append(0)
+        train_data.append({
+            "box": box,
+            "image": str(data_info_file.parent.joinpath(data_info_file.name.replace(".txt", ".nii.gz"))),
+            "label": label
+        })
+    # train_data = train_data[:2]
     train_ds = PersistentDataset(
         data=train_data[: int(0.95 * len(train_data))],
         transform=train_transforms,
@@ -167,7 +148,7 @@ def main():
     )
     train_loader = DataLoader(
         train_ds,
-        batch_size=8,
+        batch_size=3,
         shuffle=True,
         num_workers=0,
         pin_memory=torch.cuda.is_available(),
@@ -288,7 +269,7 @@ def main():
     best_val_epoch_metric = 0.0
     best_val_epoch = -1  # the epoch that gives best validation metrics
 
-    max_epochs = 300
+    max_epochs = 500
     epoch_len = len(train_ds) // train_loader.batch_size
     w_cls = config_dict.get(
         "w_cls", 1.0

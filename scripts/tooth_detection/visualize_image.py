@@ -54,10 +54,10 @@ def visualize_one_xy_slice_in_3d_image(gt_boxes, image, pred_boxes, gt_box_index
 
     # draw GT box, notice that cv2 uses Cartesian indexing instead of Matrix indexing.
     # so the xy position needs to be transposed.
-    for box_index in range(gt_boxes.shape[0]):
+    for box_index in range(0, 16):
         # gt太多了 随机显示一部分
-        if random.random() < 0.5:
-            continue
+        # if random.random() < 0.5:
+        #     continue
         draw_box = gt_boxes[box_index, :]
         draw_box = np.round(draw_box).astype(int).tolist()
         cv2.rectangle(
