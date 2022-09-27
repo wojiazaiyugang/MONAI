@@ -134,7 +134,7 @@ def main():
             # b = tooth_info["bbox_world"]
             box.append(((b[0]+b[3])/2, (b[1]+b[4])/2, (b[2]+b[5])/2, b[3] - b[0], b[4]-b[1], b[5]-b[2]))
             # box.append(b)
-            label.append(0)
+            label.append(int(tooth_label)-1)
         train_data.append({
             "box": box,
             "image": str(data_info_file.parent.joinpath(data_info_file.name.replace(".txt", ".nii.gz"))),
@@ -265,7 +265,7 @@ def main():
 
     # 5. train
     val_interval = 1  # do validation every val_interval epochs
-    coco_metric = COCOMetric(classes=["nodule"], iou_list=[0.1], max_detection=[100])
+    coco_metric = COCOMetric(classes=[f"nodule{i}" for i in range(32)], iou_list=[0.1]*32, max_detection=[100]*32)
     best_val_epoch_metric = 0.0
     best_val_epoch = -1  # the epoch that gives best validation metrics
 
