@@ -613,3 +613,28 @@ class CropForegroundSamplesByBBox(MapTransform, InvertibleTransform):
             self.pop_transform(d, key)
 
         return d
+
+
+class CropToothClassificationInstance(MapTransform):
+    """
+    裁剪牙齿分类数据
+    """
+
+    # def __init__(self):
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+        # info文件
+        info: Dict[str, Dict[str, Any]] = json.loads(Path(data['info']).read_bytes())
+        result = []
+        # 图像是re spacing之后的，bbox也要对应改变
+        origin_spacing = data["image"].meta["pixdim"][1:4].tolist()
+        ratio = origin_spacing[0] / 0.25, origin_spacing[1] / 0.25, origin_spacing[2] / 0.25
+        for tooth_label, tooth_info in info.items():
+            bbox = tooth_info["bbox"]
+            croper = SpatialCrop(roi_start=[int(ratio[0] * bbox[0]), int(ratio[1] * bbox[1]), int(ratio[2] * bbox[2])],
+                                 roi_end=[int(ratio[0] * bbox[3]), int(ratio[1] * bbox[4]), int(ratio[2] * bbox[5])])
+            patch = croper(data['image'])
+            result.append({
+                "image": patch,
+                "label": torch.nn.functional.one_hot(torch.tensor(np.array(int(tooth_label) - 1)), num_classes=32).float(),
+            })
+        return result
