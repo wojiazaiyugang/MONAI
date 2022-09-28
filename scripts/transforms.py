@@ -630,8 +630,13 @@ class CropToothClassificationInstance(MapTransform):
         ratio = origin_spacing[0] / 0.25, origin_spacing[1] / 0.25, origin_spacing[2] / 0.25
         for tooth_label, tooth_info in info.items():
             bbox = tooth_info["bbox"]
-            croper = SpatialCrop(roi_start=[int(ratio[0] * bbox[0]), int(ratio[1] * bbox[1]), int(ratio[2] * bbox[2])],
-                                 roi_end=[int(ratio[0] * bbox[3]), int(ratio[1] * bbox[4]), int(ratio[2] * bbox[5])])
+            new_bbox = [int(ratio[0] * bbox[0]), int(ratio[1] * bbox[1]), int(ratio[2] * bbox[2]), int(ratio[0] * bbox[3]), int(ratio[1] * bbox[4]), int(ratio[2] * bbox[5])]
+            width = new_bbox[3]-new_bbox[0]
+            height = new_bbox[4]-new_bbox[1]
+            depth = new_bbox[5]-new_bbox[2]
+            print(width, height, depth)
+            croper = SpatialCrop(roi_start=[new_bbox[0], new_bbox[1], new_bbox[2]],
+                                 roi_end=[new_bbox[3], new_bbox[4], new_bbox[5]])
             patch = croper(data['image'])
             result.append({
                 "image": patch,

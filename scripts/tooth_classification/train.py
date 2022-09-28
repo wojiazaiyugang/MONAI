@@ -20,7 +20,7 @@ from monai.transforms import (
     Compose, Orientationd,
     RandRotate90,
     Resize, Spacingd,
-    ScaleIntensity, EnsureChannelFirstd, Resized, RandRotate90d, LoadImaged, EnsureTyped, ResizeWithPadOrCropd, RandShiftIntensityd
+    ScaleIntensity, EnsureChannelFirstd, Resized, RandRotate90d, LoadImaged, EnsureTyped, ResizeWithPadOrCropd, RandShiftIntensityd, ScaleIntensityRanged
 )
 from scripts.dataset import RandomSubItemListDataset
 from scripts.transforms import CropToothClassificationInstance
@@ -37,36 +37,45 @@ for image_file in Path("/media/3TB/data/xiaoliutech/20220923").glob("*.image.nii
         "image": str(image_file),
         "info": str(image_file.parent.joinpath(image_file.name.replace(".image.nii.gz", ".info.txt"))),
     })
-# datas = datas[:3]
-# labels =
 train_transforms = Compose([
     LoadImaged(keys="image"),
     EnsureChannelFirstd(keys="image"),
     Orientationd(keys="image", axcodes="RAS"),
     Spacingd(keys="image", pixdim=(0.25, 0.25, 0.25), mode="bilinear"),
+    ScaleIntensityRanged(
+        keys=["image"],
+        a_min=0,
+        a_max=4000,
+        b_min=0.0,
+        b_max=1.0,
+        clip=True,
+    ),
     CropToothClassificationInstance(keys="image"),
     ResizeWithPadOrCropd(keys="image", spatial_size=(120, 120, 120)),
-    # RandShiftIntensityd(
-    #     keys=["image"],
-    #     offsets=0.10,
-    #     prob=0.10,
-    # ),
 ])
 val_transforms = Compose([
     LoadImaged(keys="image"),
     EnsureChannelFirstd(keys="image"),
     Orientationd(keys="image", axcodes="RAS"),
     Spacingd(keys="image", pixdim=(0.25, 0.25, 0.25), mode="bilinear"),
+    ScaleIntensityRanged(
+        keys=["image"],
+        a_min=0,
+        a_max=4000,
+        b_min=0.0,
+        b_max=1.0,
+        clip=True,
+    ),
     CropToothClassificationInstance(keys="image"),
     ResizeWithPadOrCropd(keys="image", spatial_size=(120, 120, 120))
 ])
 
 CACHE_DIR = Path("/home/yujiannan/Projects/MONAI/data/temp/tooth_clssification")
-train_count = len(datas) - 5
+train_count = len(datas) - 10
 train_ds = PersistentDataset(data=datas[:train_count], transform=train_transforms, cache_dir=str(CACHE_DIR))
-train_ds = RandomSubItemListDataset(train_ds, max_len=5)
+train_ds = RandomSubItemListDataset(train_ds, max_len=10)
 val_ds = PersistentDataset(data=datas[train_count:], transform=val_transforms, cache_dir=str(CACHE_DIR))
-val_ds = RandomSubItemListDataset(val_ds, max_len=2)
+val_ds = RandomSubItemListDataset(val_ds, max_len=10)
 
 train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=0, pin_memory=pin_memory)
 val_loader = DataLoader(val_ds, batch_size=1, num_workers=0, pin_memory=pin_memory)
