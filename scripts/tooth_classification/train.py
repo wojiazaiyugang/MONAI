@@ -77,7 +77,7 @@ train_ds = RandomSubItemListDataset(train_ds, max_len=10)
 val_ds = PersistentDataset(data=datas[train_count:], transform=val_transforms, cache_dir=str(CACHE_DIR))
 val_ds = RandomSubItemListDataset(val_ds, max_len=10)
 
-train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=0, pin_memory=pin_memory)
+train_loader = DataLoader(train_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=pin_memory)
 val_loader = DataLoader(val_ds, batch_size=1, num_workers=0, pin_memory=pin_memory)
 model = monai.networks.nets.DenseNet121(spatial_dims=3, in_channels=1, out_channels=32).to(device)
 loss_function = torch.nn.CrossEntropyLoss()

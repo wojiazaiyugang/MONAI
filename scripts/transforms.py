@@ -634,7 +634,6 @@ class CropToothClassificationInstance(MapTransform):
             width = new_bbox[3]-new_bbox[0]
             height = new_bbox[4]-new_bbox[1]
             depth = new_bbox[5]-new_bbox[2]
-            print(width, height, depth)
             croper = SpatialCrop(roi_start=[new_bbox[0], new_bbox[1], new_bbox[2]],
                                  roi_end=[new_bbox[3], new_bbox[4], new_bbox[5]])
             patch = croper(data['image'])
