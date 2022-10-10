@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from monai.data import decollate_batch, PersistentDataset, DataLoader
 from monai.inferers import sliding_window_inference
-from monai.losses import DiceCELoss
+from monai.losses import DiceCELoss, FocalLoss
 from monai.metrics import DiceMetric
 from monai.networks.nets import SwinUNETR
 from monai.transforms import (
@@ -115,7 +115,8 @@ else:
     dice_val_best = 0.0
 
 torch.backends.cudnn.benchmark = True
-loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
+# loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
+loss_function = FocalLoss(to_onehot_y=True)
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-5)
 scaler = torch.cuda.amp.GradScaler()
 

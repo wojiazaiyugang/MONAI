@@ -3,7 +3,7 @@ from pathlib import Path
 from monai.transforms import ScaleIntensityRanged
 
 log_dir = Path(__file__).parent.resolve().joinpath("logs").joinpath("swin_unetr")
-work_dir = log_dir.joinpath("13")
+work_dir = log_dir.joinpath("14")
 
 # IMAGE_SIZE = (96, 96, 96)  # 数据训练size
 IMAGE_SIZE = (160, 160, 160)  # 数据训练size
