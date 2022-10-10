@@ -434,7 +434,10 @@ class CropForegroundSamples(RandomizableTransform, MapTransform, InvertibleTrans
                     # Warning, the CropForeground may copy(if padding) or inference original volume as result patch
                     # Warning, we should copy patch first, or it will modify and corrupt original label values
                     patch = deepcopy(patch)
-                    patch[patch != fg_l] = bg_label
+                    # patch[patch != fg_l] = bg_label
+                    patch[patch == fg_l] = -1
+                    patch[(patch != -1) & (patch != bg_label)] = 2
+                    patch[patch == -1] = 1
                     if self.to_same_fg_label is not None:
                         patch[patch == fg_l] = self.to_same_fg_label
 

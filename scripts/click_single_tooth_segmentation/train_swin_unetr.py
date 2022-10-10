@@ -28,7 +28,6 @@ from scripts.dataset import RandomSubItemListDataset
 from scripts.transforms import CropForegroundSamples, ConfirmLabelLessD, PreprocessForegroundSamples
 
 tensorboard_writer = SummaryWriter(str(work_dir))
-num_samples = 4
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -42,8 +41,8 @@ train_transforms = Compose(
         PreprocessForegroundSamples(keys=["image", "label"], label_key="label"),
         CropForegroundSamples(keys=["image", "label"], label_key="label", margin=crop_margin, image_size=IMAGE_SIZE),
         DeleteItemsd(keys="preprocess_data"),
-        ConfirmLabelLessD(keys=["label"], max_val=50),
-        MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
+        # ConfirmLabelLessD(keys=["label"], max_val=50),
+        # MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
         RandFlipd(
             keys=["image", "label"],
@@ -80,8 +79,8 @@ val_transforms = Compose(
         PreprocessForegroundSamples(keys=["image", "label"], label_key="label"),
         CropForegroundSamples(keys=["image", "label"], label_key="label", margin=crop_margin, image_size=IMAGE_SIZE),
         DeleteItemsd(keys="preprocess_data"),
-        ConfirmLabelLessD(keys=["label"], max_val=50),
-        MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
+        # ConfirmLabelLessD(keys=["label"], max_val=50),
+        # MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
     ]
 )
@@ -136,9 +135,8 @@ def validation(epoch_iterator_val):
             epoch_iterator_val.set_description("Validate (%d / %d Steps)" % (global_step, 10.0))
             if step == 0:
                 slice_id = 60
-                for i in range(0, IMAGE_SIZE[2], 10):
-                    label = val_labels[0][0].cpu().numpy()[..., i]
-                    if np.sum(label) > 0:
+                for i in range(0, IMAGE_SIZE[2], 20):
+                    if len(np.unique(val_labels[0][0].cpu().numpy()[..., i])) == CLASS_COUNT:
                         slice_id = i
                         break
                 image = val_inputs[0][0].cpu().numpy()[..., slice_id]
@@ -148,7 +146,6 @@ def validation(epoch_iterator_val):
                 pred_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
                 gt_image[label == 1] = (255, 0, 0)
                 gt_image[label == 2] = (0, 255, 0)
-                gt_image[label == 3] = (0, 0, 255)
                 for index, pre in enumerate(val_output_convert[0]):
                     if index == 0:
                         # 背景
@@ -156,6 +153,8 @@ def validation(epoch_iterator_val):
                     pred = pre[..., slice_id]
                     if index == 1:
                         color = (255, 0, 0)
+                    elif index == 2:
+                        color = (0, 255, 0)
                     pred_image[pred.cpu().numpy() > 0] = color
                 log_image = np.hstack((gt_image, pred_image))
                 log_image = cv2.cvtColor(log_image, cv2.COLOR_BGR2RGB)
