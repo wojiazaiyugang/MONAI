@@ -125,19 +125,17 @@ def main():
     #         "image": d.joinpath(file.name[:-4]),
     #         "label": [0 for _ in range(len(box))]
     #     })
-    dataset_dir = Path("/home/yujiannan/Projects/MONAI/data/tooth_instannce_segmentation")
+    dataset_dir = Path("/home/yujiannan/Projects/MONAI/data/tooth_det")
     for data_info_file in dataset_dir.glob("*.txt"):
         with open(data_info_file, "r") as f:
             data_info = json.load(f)
         box, label = [], []
-        for tooth_label, b in data_info.items():
-            # b = tooth_info["bbox_world"]
+        for b in data_info:
             box.append(((b[0]+b[3])/2, (b[1]+b[4])/2, (b[2]+b[5])/2, b[3] - b[0], b[4]-b[1], b[5]-b[2]))
-            # box.append(b)
-            label.append(int(tooth_label)-1)
+            label.append(0)
         train_data.append({
             "box": box,
-            "image": str(data_info_file.parent.joinpath(data_info_file.name.replace(".txt", ".nii.gz"))),
+            "image": str(data_info_file.parent.joinpath(data_info_file.name.replace(".info.txt", ".image.nii.gz"))),
             "label": label
         })
     # train_data = train_data[:2]
@@ -148,7 +146,7 @@ def main():
     )
     train_loader = DataLoader(
         train_ds,
-        batch_size=3,
+        batch_size=6,
         shuffle=True,
         num_workers=0,
         pin_memory=torch.cuda.is_available(),
@@ -265,7 +263,7 @@ def main():
 
     # 5. train
     val_interval = 1  # do validation every val_interval epochs
-    coco_metric = COCOMetric(classes=[f"nodule{i}" for i in range(32)], iou_list=[0.1]*32, max_detection=[100]*32)
+    coco_metric = COCOMetric(classes=[f"nodule{i}" for i in range(len(args.fg_labels))], iou_list=[0.1]*len(args.fg_labels), max_detection=[100]*len(args.fg_labels))
     best_val_epoch_metric = 0.0
     best_val_epoch = -1  # the epoch that gives best validation metrics
 
