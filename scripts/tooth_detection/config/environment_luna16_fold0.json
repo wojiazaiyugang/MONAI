@@ -1,4 +1,4 @@
 {
-    "model_path": "/home/yujiannan/Projects/MONAI/scripts/tooth_detection/logs/22/model_luna16_fold0.pt",
-    "tfevent_path": "/home/yujiannan/Projects/MONAI/scripts/tooth_detection/logs/22"
+    "model_path": "/home/yujiannan/Projects/MONAI/scripts/tooth_detection/logs/24/model_luna16_fold0.pt",
+    "tfevent_path": "/home/yujiannan/Projects/MONAI/scripts/tooth_detection/logs/24"
 }
