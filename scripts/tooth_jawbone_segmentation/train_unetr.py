@@ -1,5 +1,7 @@
 import os
+import random
 from typing import Tuple
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -12,6 +14,7 @@ from monai.data import (
     DataLoader,
     CacheDataset,
     decollate_batch,
+PersistentDataset
 )
 from monai.inferers import sliding_window_inference
 from monai.losses import DiceCELoss
@@ -32,9 +35,10 @@ from monai.transforms import (
     ToTensord
 )
 from scripts import get_data_dir
-from scripts.teeth_jawbone_segmentation.config_unetr import SPACING, SCALE_INTENSITY_RANGE, IMAGE_SIZE, CLASS_COUNT, \
-    WORK_DIR, PRETRAINED_MODEL
+from scripts.tooth_jawbone_segmentation.config_unetr import SPACING, SCALE_INTENSITY_RANGE, IMAGE_SIZE, CLASS_COUNT, \
+    WORK_DIR, PRETRAINED_MODEL, CACHE_DIR
 
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 def normalize_image_to_uint8(image):
     """
@@ -56,7 +60,7 @@ def validation(epoch_iterator_val, global_step):
     with torch.no_grad():
         for step, batch in enumerate(epoch_iterator_val):
             val_inputs, val_labels = (batch["image"].cuda(), batch["label"].cuda())
-            val_outputs = sliding_window_inference(val_inputs, IMAGE_SIZE, 4, model)
+            val_outputs = sliding_window_inference(val_inputs, IMAGE_SIZE, 1, model)
             val_labels_list = decollate_batch(val_labels)
             val_labels_convert = [
                 post_label(val_label_tensor) for val_label_tensor in val_labels_list
@@ -70,7 +74,7 @@ def validation(epoch_iterator_val, global_step):
                 "Validate (%d / %d Steps)" % (global_step, 10.0)
             )
             if step == 0:
-                slice_id = 120
+                slice_id = random.choice([60, 120])
                 image = val_inputs[0][0].cpu().numpy()[..., slice_id]
                 label = val_labels[0][0].cpu().numpy()[..., slice_id]
                 image = normalize_image_to_uint8(image)
@@ -79,6 +83,7 @@ def validation(epoch_iterator_val, global_step):
                 gt_image[label == 1] = (255, 0, 0)
                 gt_image[label == 2] = (0, 255, 0)
                 gt_image[label == 3] = (0, 0, 255)
+                gt_image[label == 4] = (0, 255, 255)
                 for index, pre in enumerate(val_output_convert[0]):
                     if index == 0:
                         # 背景
@@ -90,6 +95,8 @@ def validation(epoch_iterator_val, global_step):
                         color = (0, 255, 0)
                     elif index == 3:
                         color = (0, 0, 255)
+                    elif index == 4:
+                        color = (0, 255, 255)
                     pred_image[pred.cpu().numpy() > 0] = color
                 log_image = np.hstack((gt_image, pred_image))
                 log_image = cv2.cvtColor(log_image, cv2.COLOR_BGR2RGB)
@@ -197,6 +204,11 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
             LoadImaged(keys=["image", "label"]),
             AddChanneld(keys=["image", "label"]),
             Orientationd(keys=["image", "label"], axcodes="RAS"),
+            Spacingd(
+                keys=["image", "label"],
+                pixdim=SPACING,
+                mode=("bilinear", "nearest"),
+            ),
             SCALE_INTENSITY_RANGE,
             CropForegroundd(keys=["image", "label"], source_key="image"),
             RandCropByPosNegLabeld(
@@ -205,7 +217,7 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
                 spatial_size=IMAGE_SIZE,
                 pos=1,
                 neg=1,
-                num_samples=4,
+                num_samples=1,
                 image_key="image",
                 image_threshold=0,
             ),
@@ -249,18 +261,28 @@ def get_train_val_transform() -> Tuple[monai.transforms.Compose, monai.transform
             ),
             SCALE_INTENSITY_RANGE,
             CropForegroundd(keys=["image", "label"], source_key="image"),
+            RandCropByPosNegLabeld(
+                keys=["image", "label"],
+                label_key="label",
+                spatial_size=IMAGE_SIZE,
+                pos=1,
+                neg=0,
+                num_samples=1,
+                image_key="image",
+                image_threshold=0,
+            ),
             ToTensord(keys=["image", "label"]),
         ]
     )
     return train_transforms, val_transforms
 
 
-def get_dataset() -> Tuple[monai.data.CacheDataset, monai.data.CacheDataset]:
+def get_dataset():
     """
     获取数据集
     :return:
     """
-    dataset_dir = get_data_dir().joinpath("teeth_jawbone_segmentation")
+    dataset_dir = Path("/media/3TB/data/xiaoliutech/20221020")
     dataset = []
     for file in dataset_dir.iterdir():
         if "image" in file.name:
@@ -272,15 +294,13 @@ def get_dataset() -> Tuple[monai.data.CacheDataset, monai.data.CacheDataset]:
     train_count = int(len(dataset) * 0.95)
     train_files, val_files = dataset[:train_count], dataset[train_count:]
     train_transforms, val_transforms = get_train_val_transform()
-    train_ds = CacheDataset(
+    train_ds = PersistentDataset(
         data=train_files,
         transform=train_transforms,
-        cache_num=20,
-        cache_rate=1.0,
-        num_workers=8,
+        cache_dir=str(CACHE_DIR)
     )
-    val_ds = CacheDataset(
-        data=val_files, transform=val_transforms, cache_num=6, cache_rate=1.0, num_workers=4
+    val_ds = PersistentDataset(
+        data=val_files, transform=val_transforms, cache_dir=str(CACHE_DIR)
     )
     return train_ds, val_ds
 
@@ -290,10 +310,10 @@ if __name__ == '__main__':
     train_ds, val_ds = get_dataset()
 
     train_loader = DataLoader(
-        train_ds, batch_size=1, shuffle=True, num_workers=8, pin_memory=True
+        train_ds, batch_size=1, shuffle=True, num_workers=8, pin_memory=False
     )
     val_loader = DataLoader(
-        val_ds, batch_size=1, shuffle=False, num_workers=4, pin_memory=True
+        val_ds, batch_size=1, shuffle=False, num_workers=4, pin_memory=False
     )
 
     model = get_model()
