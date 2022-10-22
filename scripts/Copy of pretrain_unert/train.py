@@ -25,8 +25,7 @@ from monai.transforms import (
     RandCoarseShuffled
 )
 
-from scripts.pretrain_unert.config import IMAGE_SIZE
-
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 def main():
     # TODO Defining file paths & output directory path
@@ -44,7 +43,7 @@ def main():
     # train_Data = json_Data['training']
     # val_Data = json_Data['validation']
 
-    datas = list(Path("/media/3TB/data/xiaoliutech/NIIGZ").glob("*.nii.gz"))
+    datas = list(Path("/media/DATA1/yujiannan/NIIGZ").glob("*.nii.gz"))
     train_count = len(datas) - 40
     train_Data = [{"image": str(data)} for data in datas[:train_count]]
     val_Data = [{"image": str(data)} for data in datas[train_count:]]
@@ -72,12 +71,12 @@ def main():
             EnsureChannelFirstd(keys=["image"]),
             Spacingd(keys=["image"], pixdim=(2, 2, 2), mode=("bilinear")),
             ScaleIntensityRanged(
-                keys=["image"], a_min=0, a_max=5000,
+                keys=["image"], a_min=-1000, a_max=5000,
                 b_min=0.0, b_max=1.0, clip=True,
             ),
             CropForegroundd(keys=["image"], source_key="image"),
-            SpatialPadd(keys=["image"], spatial_size=IMAGE_SIZE),
-            RandSpatialCropSamplesd(keys=["image"], roi_size=IMAGE_SIZE, random_size=False, num_samples=2),
+            SpatialPadd(keys=["image"], spatial_size=(96, 96, 96)),
+            RandSpatialCropSamplesd(keys=["image"], roi_size=(96, 96, 96), random_size=False, num_samples=2),
             CopyItemsd(keys=["image"], times=2, names=["gt_image", "image_2"], allow_missing_keys=False),
             OneOf(transforms=[
                 RandCoarseDropoutd(keys=["image"], prob=1.0, holes=6, spatial_size=5, dropout_holes=True,
@@ -100,17 +99,17 @@ def main():
         ]
     )
 
-    check_ds = PersistentDataset(data=train_Data, transform=train_Transforms, cache_dir="/media/3TB/data/xiaoliutech/cache/pretrain")
+    check_ds = PersistentDataset(data=train_Data, transform=train_Transforms, cache_dir="/media/DATA1/yujiannan/cache/pretrain")
     check_loader = DataLoader(check_ds, batch_size=1)
     check_data = first(check_loader)
     image = (check_data["image"][0][0])
     print(f"image shape: {image.shape}")
 
     # Define Network ViT backbone & Loss & Optimizer
-    device = torch.device("cuda:0")
+    device = torch.device("cuda:1")
     model = ViTAutoEnc(
         in_channels=1,
-        img_size=IMAGE_SIZE,
+        img_size=(96, 96, 96),
         patch_size=(16, 16, 16),
         pos_embed='conv',
         hidden_size=768,
@@ -120,7 +119,7 @@ def main():
     model = model.to(device)
 
     # Define Hyper-paramters for training loop
-    max_epochs = 500
+    max_epochs = 1500
     val_interval = 2
     batch_size = 4
     lr = 1e-4

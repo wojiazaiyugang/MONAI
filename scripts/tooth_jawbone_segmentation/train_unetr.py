@@ -74,7 +74,7 @@ def validation(epoch_iterator_val, global_step):
                 "Validate (%d / %d Steps)" % (global_step, 10.0)
             )
             if step == 0:
-                slice_id = random.choice([60, 120])
+                slice_id = random.choice([60, 20])
                 image = val_inputs[0][0].cpu().numpy()[..., slice_id]
                 label = val_labels[0][0].cpu().numpy()[..., slice_id]
                 image = normalize_image_to_uint8(image)
