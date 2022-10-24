@@ -14,7 +14,7 @@ from monai.networks.nets import SwinUNETR
 from monai.transforms import AsDiscrete, Compose, LoadImaged, Orientationd, RandFlipd, RandShiftIntensityd, \
     RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld, SpatialCropd, CenterSpatialCropd
 from scripts import get_data_dir, normalize_image_to_uint8
-from scripts.teeth_jawbone_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
+from scripts.tooth_jawbone_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
     CLASS_COUNT
 
 tensorboard_writer = SummaryWriter(str(work_dir))
@@ -74,8 +74,8 @@ val_transforms = Compose(
         EnsureTyped(keys=["image", "label"], device=device, track_meta=True),
     ]
 )
-
-dataset_dir = get_data_dir().joinpath("teeth_jawbone_segmentation")
+from pathlib import Path
+dataset_dir = Path("/media/3TB/data/xiaoliutech/20221020")
 dataset = []
 for file in dataset_dir.iterdir():
     if "image" in file.name:
@@ -87,6 +87,7 @@ for file in dataset_dir.iterdir():
 
 train_count = int(len(dataset) * 0.95)
 train_files, val_files = dataset[:train_count], dataset[train_count:]
+train_files, val_files = dataset[:3], dataset[3:6]
 train_ds = PersistentDataset(
     data=train_files,
     transform=train_transforms,
@@ -152,6 +153,7 @@ def validation(epoch_iterator_val):
                 gt_image[label == 1] = (255, 0, 0)
                 gt_image[label == 2] = (0, 255, 0)
                 gt_image[label == 3] = (0, 0, 255)
+                gt_image[label == 4] = (0, 255, 255)
                 for index, pre in enumerate(val_output_convert[0]):
                     if index == 0:
                         # 背景
@@ -163,6 +165,8 @@ def validation(epoch_iterator_val):
                         color = (0, 255, 0)
                     elif index == 3:
                         color = (0, 0, 255)
+                    elif index == 4:
+                        color = (0, 255, 255)
                     pred_image[pred.cpu().numpy() > 0] = color
                 log_image = np.hstack((gt_image, pred_image))
                 log_image = cv2.cvtColor(log_image, cv2.COLOR_BGR2RGB)
@@ -228,7 +232,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
 
 
 max_iterations = 50000
-eval_num = 500
+eval_num = 50
 post_label = AsDiscrete(to_onehot=CLASS_COUNT)
 post_pred = AsDiscrete(argmax=True, to_onehot=CLASS_COUNT)
 dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)

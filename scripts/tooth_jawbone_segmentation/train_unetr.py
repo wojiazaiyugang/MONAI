@@ -178,7 +178,7 @@ def get_model() -> torch.nn.Module:
     ).to(device)
     if PRETRAINED_MODEL:
         print('加载预训练模型 {}'.format(PRETRAINED_MODEL))
-        vit_dict = torch.load(PRETRAINED_MODEL)
+        vit_dict = torch.load(PRETRAINED_MODEL, map_location='cuda:0')
         vit_weights = vit_dict['state_dict']
 
         # Remove items of vit_weights if they are not in the ViT backbone (this is used in UNETR).
