@@ -15,7 +15,7 @@ from monai.transforms import AsDiscrete, Compose, LoadImaged, Orientationd, Rand
     RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld, SpatialCropd, CenterSpatialCropd
 from scripts import get_data_dir, normalize_image_to_uint8
 from scripts.tooth_jawbone_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
-    CLASS_COUNT
+    CLASS_COUNT, CACHE_DIR
 
 tensorboard_writer = SummaryWriter(str(work_dir))
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -87,17 +87,16 @@ for file in dataset_dir.iterdir():
 
 train_count = int(len(dataset) * 0.95)
 train_files, val_files = dataset[:train_count], dataset[train_count:]
-train_files, val_files = dataset[:3], dataset[3:6]
 train_ds = PersistentDataset(
     data=train_files,
     transform=train_transforms,
-    cache_dir="/home/yujiannan/Projects/MONAI/data/temp/train5",
+    cache_dir=CACHE_DIR,
 )
 
 val_ds = PersistentDataset(
     data=val_files,
     transform=val_transforms,
-    cache_dir="/home/yujiannan/Projects/MONAI/data/temp/val5",
+    cache_dir=CACHE_DIR,
 )
 
 train_loader = DataLoader(
@@ -232,7 +231,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
 
 
 max_iterations = 50000
-eval_num = 50
+eval_num = 500
 post_label = AsDiscrete(to_onehot=CLASS_COUNT)
 post_pred = AsDiscrete(argmax=True, to_onehot=CLASS_COUNT)
 dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
