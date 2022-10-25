@@ -15,7 +15,7 @@ from monai.transforms import AsDiscrete, Compose, LoadImaged, Orientationd, Rand
     RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld, SpatialCropd, CenterSpatialCropd
 from scripts import get_data_dir, normalize_image_to_uint8
 from scripts.tooth_jawbone_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
-    CLASS_COUNT, CACHE_DIR
+    CLASS_COUNT, CACHE_DIR, LOAD_FROM
 
 tensorboard_writer = SummaryWriter(str(work_dir))
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -117,6 +117,24 @@ model = SwinUNETR(
     use_checkpoint=True,
 ).to(device)
 
+if LOAD_FROM:
+    model_dict = torch.load(LOAD_FROM)
+    state_dict = model_dict["state_dict"]
+    # fix potential differences in state dict keys from pre-training to
+    # fine-tuning
+    if "module." in list(state_dict.keys())[0]:
+        print("Tag 'module.' found in state dict - fixing!")
+        for key in list(state_dict.keys()):
+            state_dict[key.replace("module.", "")] = state_dict.pop(key)
+    if "swin_vit" in list(state_dict.keys())[0]:
+        print("Tag 'swin_vit' found in state dict - fixing!")
+        for key in list(state_dict.keys()):
+            state_dict[key.replace("swin_vit", "swinViT")] = state_dict.pop(key)
+    # We now load model weights, setting param `strict` to False, i.e.:
+    # this load the encoder weights (Swin-ViT, SSL pre-trained), but leaves
+    # the decoder weights untouched (CNN UNet decoder).
+    model.load_state_dict(state_dict, strict=False)
+    print("Using pretrained self-supervised Swin UNETR backbone weights !")
 torch.backends.cudnn.benchmark = True
 loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-5)
