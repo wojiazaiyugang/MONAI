@@ -122,18 +122,23 @@ if LOAD_FROM:
     state_dict = model_dict["state_dict"]
     # fix potential differences in state dict keys from pre-training to
     # fine-tuning
-    if "module." in list(state_dict.keys())[0]:
-        print("Tag 'module.' found in state dict - fixing!")
-        for key in list(state_dict.keys()):
-            state_dict[key.replace("module.", "")] = state_dict.pop(key)
-    if "swin_vit" in list(state_dict.keys())[0]:
-        print("Tag 'swin_vit' found in state dict - fixing!")
-        for key in list(state_dict.keys()):
-            state_dict[key.replace("swin_vit", "swinViT")] = state_dict.pop(key)
+    # if "module." in list(state_dict.keys())[0]:
+    #     print("Tag 'module.' found in state dict - fixing!")
+    #     for key in list(state_dict.keys()):
+    #         state_dict[key.replace("module.", "")] = state_dict.pop(key)
+    # if "swin_vit" in list(state_dict.keys())[0]:
+    #     print("Tag 'swin_vit' found in state dict - fixing!")
+    #     for key in list(state_dict.keys()):
+    #         state_dict[key.replace("swin_vit", "swinViT")] = state_dict.pop(key)
+    # if "swinViT" in list(state_dict.keys())[0]:
+    #     print("Tag 'vit' found in state dict - fixing!")
+    #     for key in list(state_dict.keys()):
+    #         state_dict[key.replace("swinViT", "module")] = state_dict.pop(key)
     # We now load model weights, setting param `strict` to False, i.e.:
     # this load the encoder weights (Swin-ViT, SSL pre-trained), but leaves
     # the decoder weights untouched (CNN UNet decoder).
-    model.load_state_dict(state_dict, strict=False)
+    model.load_state_dict(model_dict)
+    # model.load_from({"state_dict": state_dict})
     print("Using pretrained self-supervised Swin UNETR backbone weights !")
 torch.backends.cudnn.benchmark = True
 loss_function = DiceCELoss(to_onehot_y=True, softmax=True)

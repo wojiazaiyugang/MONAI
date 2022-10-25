@@ -1,9 +1,5 @@
-from typing import Mapping, Hashable, Tuple, Union, List, Dict, Any
-
 import torch
 import numpy as np
-from monai.config import KeysCollection
-from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms import (
     Compose,
     DeleteItemsd,
@@ -17,8 +13,6 @@ from monai.transforms import (
     RandRotated,
     RandScaleIntensityd,
     RandShiftIntensityd,
-    SaveImaged,
-Spacingd
 )
 from monai.apps.detection.transforms.dictionary import (
     AffineBoxToImageCoordinated,
@@ -33,50 +27,9 @@ from monai.apps.detection.transforms.dictionary import (
     RandZoomBoxd,
     ConvertBoxModed
 )
-from monai.transforms.transform import MapTransform
-from monai.utils.enums import TransformBackends
-
-
-class MergeLabelValued(MapTransform):
-    """
-    Merge labels from multiple items.
-    Assume the foreground value in each item is any value larger than 0, the background is zero.
-
-    Merge types:
-        same:
-            Combine all foreground regions in each item, the final foreground will be 1, the background will be 0.
-        different:
-            The foreground from first item will be 1, from second item will be 2 and so on.
-        original:
-            Inpaint the each item's original foregound value onto result one by one.
-
-    Note, the later item's foreground will override previous items' foreground region.
-
-    The return data will have key specicied by name, for example, "merge_label", and will copy meta dict from the first item
-    with name as "merge_label_meta_dict".
-    """
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
-    def __init__(self, keys: KeysCollection) -> None:
-        super().__init__(keys, False)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-
-        for key in self.key_iterator(d):
-            output = torch.zeros_like(d[key][0])
-            for index, o in enumerate(d[key][:32]):
-                fg = o > 0
-                output[fg] = index + 1
-            d[key] = output
-        return d
-
-
-def generate_detection_train_transform(image_key, box_key, label_key, gt_box_mode, intensity_transform, patch_size,
-                                       batch_size, affine_lps_to_ras=False, amp=True):
+def generate_detection_train_transform(image_key, box_key, label_key, gt_box_mode, intensity_transform, patch_size, batch_size, affine_lps_to_ras=False, amp=True):
     """
     Generate training transform for detection.
-
     Args:
         image_key: the key to represent images in the input json files
         box_key: the key to represent boxes in the input json files
@@ -89,10 +42,10 @@ def generate_detection_train_transform(image_key, box_key, label_key, gt_box_mod
         affine_lps_to_ras: Usually False.
             Set True only when the original images were read by itkreader with affine_lps_to_ras=True
         amp: whether to use half precision
-
     Return:
         training transform for detection
     """
+    amp = True
     if amp:
         compute_dtype = torch.float16
     else:
@@ -102,7 +55,6 @@ def generate_detection_train_transform(image_key, box_key, label_key, gt_box_mod
         [
             LoadImaged(keys=[image_key], meta_key_postfix="meta_dict"),
             EnsureChannelFirstd(keys=[image_key]),
-            Spacingd(keys=[image_key], pixdim=(0.5, 0.5, 0.5), mode=("bilinear")),
             EnsureTyped(keys=[image_key, box_key], dtype=torch.float32),
             EnsureTyped(keys=[label_key], dtype=torch.long),
             Orientationd(keys=[image_key], axcodes="RAS"),
@@ -212,12 +164,9 @@ def generate_detection_train_transform(image_key, box_key, label_key, gt_box_mod
     )
     return train_transforms
 
-
-def generate_detection_val_transform(image_key, box_key, label_key, gt_box_mode, intensity_transform,
-                                     affine_lps_to_ras=False, amp=True):
+def generate_detection_val_transform(image_key, box_key, label_key, gt_box_mode, intensity_transform, affine_lps_to_ras=False, amp=True):
     """
     Generate validation transform for detection.
-
     Args:
         image_key: the key to represent images in the input json files
         box_key: the key to represent boxes in the input json files
@@ -228,10 +177,10 @@ def generate_detection_val_transform(image_key, box_key, label_key, gt_box_mode,
         affine_lps_to_ras: Usually False.
             Set True only when the original images were read by itkreader with affine_lps_to_ras=True
         amp: whether to use half precision
-
     Return:
         validation transform for detection
     """
+    amp = True
     if amp:
         compute_dtype = torch.float16
     else:
@@ -241,7 +190,6 @@ def generate_detection_val_transform(image_key, box_key, label_key, gt_box_mode,
         [
             LoadImaged(keys=[image_key], meta_key_postfix="meta_dict"),
             EnsureChannelFirstd(keys=[image_key]),
-            Spacingd(keys=[image_key], pixdim=(0.5, 0.5, 0.5), mode=("bilinear")),
             EnsureTyped(keys=[image_key, box_key], dtype=torch.float32),
             EnsureTyped(keys=[label_key], dtype=torch.long),
             Orientationd(keys=[image_key], axcodes="RAS"),
@@ -259,12 +207,9 @@ def generate_detection_val_transform(image_key, box_key, label_key, gt_box_mode,
     )
     return val_transforms
 
-
-def generate_detection_inference_transform(image_key, pred_box_key, pred_label_key, pred_score_key, gt_box_mode,
-                                           intensity_transform, affine_lps_to_ras=False, amp=True):
+def generate_detection_inference_transform(image_key, pred_box_key, pred_label_key, pred_score_key, gt_box_mode, intensity_transform, affine_lps_to_ras=False, amp=True):
     """
     Generate validation transform for detection.
-
     Args:
         image_key: the key to represent images in the input json files
         pred_box_key: the key to represent predicted boxes
@@ -276,7 +221,6 @@ def generate_detection_inference_transform(image_key, pred_box_key, pred_label_k
         affine_lps_to_ras: Usually False.
             Set True only when the original images were read by itkreader with affine_lps_to_ras=True
         amp: whether to use half precision
-
     Return:
         validation transform for detection
     """
@@ -304,17 +248,13 @@ def generate_detection_inference_transform(image_key, pred_box_key, pred_label_k
                 box_ref_image_keys=image_key,
                 remove_empty=True,
             ),
-            # AffineBoxToWorldCoordinated(
-            #     box_keys=[pred_box_key],
-            #     box_ref_image_keys=image_key,
-            #     image_meta_key_postfix="meta_dict",
-            #     affine_lps_to_ras=affine_lps_to_ras,
-            # ),
-            # ConvertBoxModed(box_keys=[pred_box_key], src_mode = "xyzxyz", dst_mode=gt_box_mode),
-            BoxToMaskd(box_keys=[pred_box_key], box_ref_image_keys=image_key, label_keys=[pred_label_key],
-                       box_mask_keys=["box_mask"], min_fg_label=0),
-            MergeLabelValued(keys=["box_mask"]),
-            SaveImaged(keys=["box_mask"], meta_keys=["image_meta_dict"], output_dir="/home/yujiannan/桌面/"),
+            AffineBoxToWorldCoordinated(
+                box_keys=[pred_box_key],
+                box_ref_image_keys=image_key,
+                image_meta_key_postfix="meta_dict",
+                affine_lps_to_ras=affine_lps_to_ras,
+            ),
+            ConvertBoxModed(box_keys=[pred_box_key], src_mode = "xyzxyz", dst_mode=gt_box_mode),
             DeleteItemsd(keys=[image_key]),
         ]
     )
