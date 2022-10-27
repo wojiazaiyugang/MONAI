@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -12,7 +13,7 @@ from monai.losses import DiceCELoss
 from monai.metrics import DiceMetric
 from monai.networks.nets import SwinUNETR
 from monai.transforms import AsDiscrete, Compose, LoadImaged, Orientationd, RandFlipd, RandShiftIntensityd, \
-    RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld, SpatialCropd, CenterSpatialCropd
+    RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld, SpatialCropd, CenterSpatialCropd, MapLabelValued
 from scripts import get_data_dir, normalize_image_to_uint8
 from scripts.tooth_jawbone_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
     CLASS_COUNT, CACHE_DIR, LOAD_FROM
@@ -24,6 +25,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 train_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
+        MapLabelValued(keys="label", orig_labels=[3], target_labels=[2]),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
         CropForegroundd(keys=["image", "label"], source_key="image"),
@@ -68,13 +70,15 @@ train_transforms = Compose(
 val_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
+        MapLabelValued(keys="label", orig_labels=[3], target_labels=[2]),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
         SpatialCropd(keys=["image", "label"], roi_start=(0, 0, 190), roi_end=(10000, 10000, 290)),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=True),
     ]
 )
-from pathlib import Path
+
+
 dataset_dir = Path("/media/3TB/data/xiaoliutech/20221020")
 dataset = []
 for file in dataset_dir.iterdir():
@@ -137,7 +141,7 @@ if LOAD_FROM:
     # We now load model weights, setting param `strict` to False, i.e.:
     # this load the encoder weights (Swin-ViT, SSL pre-trained), but leaves
     # the decoder weights untouched (CNN UNet decoder).
-    model.load_state_dict(model_dict)
+    model.load_state_dict(state_dict, strict=False)
     # model.load_from({"state_dict": state_dict})
     print("Using pretrained self-supervised Swin UNETR backbone weights !")
 torch.backends.cudnn.benchmark = True
