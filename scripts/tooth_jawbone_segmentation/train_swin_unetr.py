@@ -25,7 +25,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 train_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
-        MapLabelValued(keys="label", orig_labels=[3], target_labels=[2]),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
         CropForegroundd(keys=["image", "label"], source_key="image"),
@@ -35,8 +34,8 @@ train_transforms = Compose(
             label_key="label",
             spatial_size=IMAGE_SIZE,
             pos=1,
-            neg=1,
-            num_samples=2,
+            neg=0,
+            num_samples=1,
             image_key="image",
             image_threshold=0,
         ),
@@ -70,10 +69,20 @@ train_transforms = Compose(
 val_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
-        MapLabelValued(keys="label", orig_labels=[3], target_labels=[2]),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
-        SpatialCropd(keys=["image", "label"], roi_start=(0, 0, 190), roi_end=(10000, 10000, 290)),
+        # SpatialCropd(keys=["image", "label"], roi_start=(0, 0, 190), roi_end=(10000, 10000, 290)),
+        RandCropByPosNegLabeld(
+            keys=["image", "label"],
+            label_key="label",
+            spatial_size=IMAGE_SIZE,
+            pos=1,
+            neg=0,
+            num_samples=1,
+            image_key="image",
+            image_threshold=0,
+            allow_smaller=True,
+        ),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=True),
     ]
 )
