@@ -27,6 +27,7 @@ train_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
+        MapLabelValued(keys="label", orig_labels=[4], target_labels=[3]),
         CropForegroundd(keys=["image", "label"], source_key="image"),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
         RandCropByPosNegLabeld(
@@ -71,6 +72,7 @@ val_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
+        MapLabelValued(keys="label", orig_labels=[4], target_labels=[3]),
         # SpatialCropd(keys=["image", "label"], roi_start=(0, 0, 190), roi_end=(10000, 10000, 290)),
         RandCropByPosNegLabeld(
             keys=["image", "label"],
@@ -86,7 +88,6 @@ val_transforms = Compose(
         EnsureTyped(keys=["image", "label"], device=device, track_meta=True),
     ]
 )
-
 
 dataset_dir = Path("/media/3TB/data/xiaoliutech/20221020")
 dataset = []
