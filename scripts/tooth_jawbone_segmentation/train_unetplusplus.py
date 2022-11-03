@@ -80,7 +80,7 @@ val_ds = PersistentDataset(
     cache_dir=CACHE_DIR,
 )
 
-train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4)
+train_loader = DataLoader(train_ds, batch_size=4, shuffle=True, num_workers=4)
 val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=4)
 
 max_epochs = 300
@@ -96,7 +96,7 @@ model = BasicUNetPlusPlus(
     out_channels=CLASS_COUNT,
 ).to(device)
 loss_function = DiceLoss(smooth_nr=0, smooth_dr=1e-5, squared_pred=True, to_onehot_y=False, sigmoid=True)
-optimizer = torch.optim.Adam(model.parameters(), 1e-4, weight_decay=1e-5)
+optimizer = torch.optim.Adam(model.parameters(), 3e-4, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
 
 dice_metric = DiceMetric(include_background=True, reduction="mean")
