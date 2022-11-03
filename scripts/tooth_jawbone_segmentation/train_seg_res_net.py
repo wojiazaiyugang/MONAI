@@ -95,7 +95,7 @@ val_ds = PersistentDataset(
 train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4)
 val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=4)
 
-max_epochs = 300
+max_epochs = 500
 val_interval = 1
 VAL_AMP = True
 

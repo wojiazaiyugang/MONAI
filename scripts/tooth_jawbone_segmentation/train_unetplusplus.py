@@ -80,7 +80,7 @@ val_ds = PersistentDataset(
     cache_dir=CACHE_DIR,
 )
 
-train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4)
+train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4)
 val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=4)
 
 max_epochs = 300
@@ -158,7 +158,7 @@ for epoch in range(max_epochs):
         )
         optimizer.zero_grad()
         with torch.cuda.amp.autocast():
-            outputs = model(inputs)
+            outputs = model(inputs)[0]
             labels = torch.stack([AsDiscrete(to_onehot=CLASS_COUNT)(l) for l in labels])  # type: ignore
             loss = loss_function(outputs, labels)
         scaler.scale(loss).backward()
@@ -185,7 +185,7 @@ for epoch in range(max_epochs):
                     val_data["image"].to(device),
                     val_data["label"].to(device),
                 )
-                val_outputs = inference(val_inputs)
+                val_outputs = inference(val_inputs)[0]
                 val_outputs = [post_trans(i) for i in decollate_batch(val_outputs)]
                 new_val_labels = torch.stack([AsDiscrete(to_onehot=CLASS_COUNT)(l) for l in val_labels])  # type: ignore
                 dice_metric(y_pred=val_outputs, y=new_val_labels)
