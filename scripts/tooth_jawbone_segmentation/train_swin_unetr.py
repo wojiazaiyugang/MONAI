@@ -27,7 +27,7 @@ train_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
-        MapLabelValued(keys="label", orig_labels=[4], target_labels=[3]),
+        # MapLabelValued(keys="label", orig_labels=[4], target_labels=[3]),
         CropForegroundd(keys=["image", "label"], source_key="image"),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
         RandCropByPosNegLabeld(
@@ -40,26 +40,26 @@ train_transforms = Compose(
             image_key="image",
             image_threshold=0,
         ),
-        RandFlipd(
-            keys=["image", "label"],
-            spatial_axis=[0],
-            prob=0.10,
-        ),
-        RandFlipd(
-            keys=["image", "label"],
-            spatial_axis=[1],
-            prob=0.10,
-        ),
-        RandFlipd(
-            keys=["image", "label"],
-            spatial_axis=[2],
-            prob=0.10,
-        ),
-        RandRotate90d(
-            keys=["image", "label"],
-            prob=0.10,
-            max_k=3,
-        ),
+        # RandFlipd(
+        #     keys=["image", "label"],
+        #     spatial_axis=[0],
+        #     prob=0.10,
+        # ),
+        # RandFlipd(
+        #     keys=["image", "label"],
+        #     spatial_axis=[1],
+        #     prob=0.10,
+        # ),
+        # RandFlipd(
+        #     keys=["image", "label"],
+        #     spatial_axis=[2],
+        #     prob=0.10,
+        # ),
+        # RandRotate90d(
+        #     keys=["image", "label"],
+        #     prob=0.10,
+        #     max_k=3,
+        # ),
         RandShiftIntensityd(
             keys=["image"],
             offsets=0.10,
@@ -72,7 +72,7 @@ val_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
-        MapLabelValued(keys="label", orig_labels=[4], target_labels=[3]),
+        # MapLabelValued(keys="label", orig_labels=[4], target_labels=[3]),
         # SpatialCropd(keys=["image", "label"], roi_start=(0, 0, 190), roi_end=(10000, 10000, 290)),
         RandCropByPosNegLabeld(
             keys=["image", "label"],

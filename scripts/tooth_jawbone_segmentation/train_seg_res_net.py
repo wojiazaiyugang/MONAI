@@ -101,7 +101,7 @@ VAL_AMP = True
 
 # standard PyTorch program style: create SegResNet, DiceLoss and Adam optimizer
 device = torch.device("cuda:0")
-model = SegResNetDS(
+model = SegResNet(
     blocks_down=[1, 2, 2, 4],
     blocks_up=[1, 1, 1],
     init_filters=16,

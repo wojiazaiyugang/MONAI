@@ -24,7 +24,7 @@ from monai.transforms import (
     RandShiftIntensityd,
     RandSpatialCropd,
     EnsureTyped,
-    EnsureChannelFirstd, )
+    EnsureChannelFirstd, RandCropByPosNegLabeld, )
 from scripts import normalize_image_to_uint8
 from scripts.tooth_jawbone_segmentation.config_unetplusplus import work_dir, CLASS_COUNT, scale_intensity_range, IMAGE_SIZE, CACHE_DIR
 
@@ -37,13 +37,20 @@ train_transform = Compose(
         EnsureChannelFirstd(keys=["image", "label"]),
         EnsureTyped(keys=["image", "label"]),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
-        RandSpatialCropd(keys=["image", "label"], roi_size=IMAGE_SIZE, random_size=False),
-        RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=0),
-        RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=1),
-        RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=2),
-        scale_intensity_range,
-        RandScaleIntensityd(keys="image", factors=0.1, prob=1.0),
-        RandShiftIntensityd(keys="image", offsets=0.1, prob=1.0),
+        # RandSpatialCropd(keys=["image", "label"], roi_size=IMAGE_SIZE, random_size=False),
+        RandCropByPosNegLabeld(
+            keys=["image", "label"],
+            label_key="label",
+            spatial_size=IMAGE_SIZE,
+            pos=1,
+            neg=0,
+            num_samples=1,
+            image_key="image",
+        ),
+        # RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=0),
+        # RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=1),
+        # RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=2),
+        scale_intensity_range
     ]
 )
 val_transform = Compose(
@@ -52,7 +59,16 @@ val_transform = Compose(
         EnsureChannelFirstd(keys=["image", "label"]),
         EnsureTyped(keys=["image", "label"]),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
-        scale_intensity_range
+        scale_intensity_range,
+        RandCropByPosNegLabeld(
+            keys=["image", "label"],
+            label_key="label",
+            spatial_size=IMAGE_SIZE,
+            pos=1,
+            neg=0,
+            num_samples=1,
+            image_key="image",
+        ),
     ]
 )
 
@@ -83,7 +99,7 @@ val_ds = PersistentDataset(
 train_loader = DataLoader(train_ds, batch_size=4, shuffle=True, num_workers=4)
 val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=4)
 
-max_epochs = 300
+max_epochs = 500
 val_interval = 1
 VAL_AMP = True
 
@@ -91,7 +107,6 @@ VAL_AMP = True
 device = torch.device("cuda:0")
 model = BasicUNetPlusPlus(
     spatial_dims=3,
-    dropout=0.2,
     in_channels=1,
     out_channels=CLASS_COUNT,
 ).to(device)
@@ -191,7 +206,7 @@ for epoch in range(max_epochs):
                 dice_metric(y_pred=val_outputs, y=new_val_labels)
                 dice_metric_batch(y_pred=val_outputs, y=new_val_labels)
 
-            slice_id = random.randint(60, 120)
+            slice_id = random.randint(30, 90)
             image = val_inputs[0][0].cpu().numpy()[..., slice_id]
             label = val_labels[0][0].cpu().numpy()[..., slice_id]
             image = normalize_image_to_uint8(image)
