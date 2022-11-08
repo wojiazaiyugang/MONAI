@@ -76,6 +76,7 @@ def generate_detection_train_transform(image_key, box_key, label_key, gt_box_mod
                 num_samples=batch_size,
                 pos=1,
                 neg=1,
+                allow_smaller=True
             ),
             RandZoomBoxd(
                 image_keys=[image_key],

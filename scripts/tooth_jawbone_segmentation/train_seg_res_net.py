@@ -31,7 +31,7 @@ from monai.transforms import (
     RandSpatialCropd,
     Spacingd,
     EnsureTyped,
-    EnsureChannelFirstd, EnsureChannelFirst,
+    EnsureChannelFirstd, EnsureChannelFirst, RandCropByPosNegLabeld,
 )
 from monai.utils import set_determinism
 from scripts.tooth_jawbone_segmentation.config_seg_res_net import work_dir, CLASS_COUNT, scale_intensity_range, IMAGE_SIZE, CACHE_DIR
@@ -49,10 +49,19 @@ train_transform = Compose(
         EnsureChannelFirstd(keys=["image", "label"]),
         EnsureTyped(keys=["image", "label"]),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
-        RandSpatialCropd(keys=["image", "label"], roi_size=IMAGE_SIZE, random_size=False),
-        RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=0),
-        RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=1),
-        RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=2),
+        # RandSpatialCropd(keys=["image", "label"], roi_size=IMAGE_SIZE, random_size=False),
+        RandCropByPosNegLabeld(
+            keys=["image", "label"],
+            label_key="label",
+            spatial_size=IMAGE_SIZE,
+            pos=1,
+            neg=0,
+            num_samples=1,
+            image_key="image",
+        ),
+        # RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=0),
+        # RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=1),
+        # RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=2),
         scale_intensity_range,
         RandScaleIntensityd(keys="image", factors=0.1, prob=1.0),
         RandShiftIntensityd(keys="image", offsets=0.1, prob=1.0),

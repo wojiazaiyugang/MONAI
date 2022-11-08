@@ -2,7 +2,7 @@ from pathlib import Path
 
 from monai.transforms import ScaleIntensityRanged
 
-work_dir = Path(__file__).parent.resolve().joinpath("logs").joinpath("swin_unetr").joinpath("21")
+work_dir = Path(__file__).parent.resolve().joinpath("logs").joinpath("swin_unetr").joinpath("22")
 
 SPACING = (0.25, 0.25, 0.25)  # 数据预处理
 IMAGE_SIZE = (160, 160, 160)  # 数据训练size
@@ -19,4 +19,4 @@ scale_intensity_range = ScaleIntensityRanged(
 CLASS_COUNT = 5  # 分类类别，0-背景 1-牙齿 2-下颌骨 3-上颌骨
 CACHE_DIR = Path("/home/yujiannan/Projects/MONAI/data/temp/tooth_jawbone_segmentation_swint_unetr")
 LOAD_FROM = Path("/home/yujiannan/Projects/research-contributions/SwinUNETR/Pretrain/logs/4/model_bestValRMSE.pt")
-# LOAD_FROM = None
+LOAD_FROM = None
