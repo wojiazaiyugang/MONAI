@@ -40,26 +40,26 @@ train_transforms = Compose(
             image_key="image",
             image_threshold=0,
         ),
-        # RandFlipd(
-        #     keys=["image", "label"],
-        #     spatial_axis=[0],
-        #     prob=0.10,
-        # ),
-        # RandFlipd(
-        #     keys=["image", "label"],
-        #     spatial_axis=[1],
-        #     prob=0.10,
-        # ),
-        # RandFlipd(
-        #     keys=["image", "label"],
-        #     spatial_axis=[2],
-        #     prob=0.10,
-        # ),
-        # RandRotate90d(
-        #     keys=["image", "label"],
-        #     prob=0.10,
-        #     max_k=3,
-        # ),
+        RandFlipd(
+            keys=["image", "label"],
+            spatial_axis=[0],
+            prob=0.10,
+        ),
+        RandFlipd(
+            keys=["image", "label"],
+            spatial_axis=[1],
+            prob=0.10,
+        ),
+        RandFlipd(
+            keys=["image", "label"],
+            spatial_axis=[2],
+            prob=0.10,
+        ),
+        RandRotate90d(
+            keys=["image", "label"],
+            prob=0.10,
+            max_k=3,
+        ),
         RandShiftIntensityd(
             keys=["image"],
             offsets=0.10,
@@ -89,7 +89,7 @@ val_transforms = Compose(
     ]
 )
 
-dataset_dir = Path("/media/3TB/data/xiaoliutech/20221020")
+dataset_dir = Path("/media/3TB/data/xiaoliutech/20221114")
 dataset = []
 for file in dataset_dir.iterdir():
     if "image" in file.name:

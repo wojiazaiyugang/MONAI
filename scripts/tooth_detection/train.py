@@ -146,7 +146,7 @@ def main():
     )
     train_loader = DataLoader(
         train_ds,
-        batch_size=2,
+        batch_size=1,
         shuffle=True,
         num_workers=0,
         pin_memory=torch.cuda.is_available(),
