@@ -99,10 +99,6 @@ for file in dataset_dir.iterdir():
             "image": str(file),
             "label": str(label_file)
         })
-dataset.insert(0, {
-    "image": "/media/3TB/data/xiaoliutech/20221114/2.16.840.1.113669.632.10.20200721.175728579.0.50.image.nii.gz",
-    "label": "/media/3TB/data/xiaoliutech/20221114/2.16.840.1.113669.632.10.20200721.175728579.0.50.label.nii.gz"
-})
 
 train_count = int(len(dataset) * 0.95)
 train_files, val_files = dataset[:train_count], dataset[train_count:]
