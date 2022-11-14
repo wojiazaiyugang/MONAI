@@ -17,7 +17,7 @@ from monai.transforms import AsDiscrete, Compose, LoadImaged, Orientationd, Rand
 from scripts import get_data_dir, normalize_image_to_uint8
 from scripts.tooth_jawbone_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
     CLASS_COUNT, CACHE_DIR, LOAD_FROM
-
+torch.multiprocessing.set_sharing_strategy('file_system')
 tensorboard_writer = SummaryWriter(str(work_dir))
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -28,7 +28,7 @@ train_transforms = Compose(
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
         # MapLabelValued(keys="label", orig_labels=[4], target_labels=[3]),
-        CropForegroundd(keys=["image", "label"], source_key="image"),
+        # CropForegroundd(keys=["image", "label"], source_key="image"),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
         RandCropByPosNegLabeld(
             keys=["image", "label"],
@@ -39,6 +39,7 @@ train_transforms = Compose(
             num_samples=1,
             image_key="image",
             image_threshold=0,
+            allow_smaller=True,
         ),
         RandFlipd(
             keys=["image", "label"],
@@ -98,6 +99,10 @@ for file in dataset_dir.iterdir():
             "image": str(file),
             "label": str(label_file)
         })
+dataset.insert(0, {
+    "image": "/media/3TB/data/xiaoliutech/20221114/2.16.840.1.113669.632.10.20200721.175728579.0.50.image.nii.gz",
+    "label": "/media/3TB/data/xiaoliutech/20221114/2.16.840.1.113669.632.10.20200721.175728579.0.50.label.nii.gz"
+})
 
 train_count = int(len(dataset) * 0.95)
 train_files, val_files = dataset[:train_count], dataset[train_count:]
@@ -114,7 +119,7 @@ val_ds = PersistentDataset(
 )
 
 train_loader = DataLoader(
-    train_ds, batch_size=1, shuffle=True, num_workers=0, pin_memory=False
+    train_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=False
 )
 val_loader = DataLoader(
     val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=False
