@@ -32,7 +32,7 @@ DEFAULT_METADATA = {
     "version": "0.0.1",
     "changelog": {"0.0.1": "Initial version"},
     "monai_version": _conf_values["MONAI"],
-    "pytorch_version": _conf_values["Pytorch"],
+    "pytorch_version": str(_conf_values["Pytorch"]).split("+")[0].split("a")[0],  # 1.9.0a0+df837d0 or 1.13.0+cu117
     "numpy_version": _conf_values["Numpy"],
     "optional_packages_version": {},
     "task": "Describe what the network predicts",
@@ -93,6 +93,31 @@ DEFAULT_INFERENCE = {
         "val_handlers": "@handlers",
     },
     "evaluating": ["$@evaluator.run()"],
+}
+
+DEFAULT_HANDLERS_ID = {
+    "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+    "validator": {"id": "validate#evaluator", "handlers": "validate#handlers"},
+    "evaluator": {"id": "evaluator", "handlers": "handlers"},
+}
+
+DEFAULT_MLFLOW_SETTINGS = {
+    "handlers_id": DEFAULT_HANDLERS_ID,
+    "configs": {
+        # MLFlowHandler config for the trainer
+        "trainer": {
+            "_target_": "MLFlowHandler",
+            "tracking_uri": "$@output_dir + '/mlflow'",
+            "iteration_log": True,
+            "epoch_log": True,
+            "tag_name": "train_loss",
+            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+        },
+        # MLFlowHandler config for the validator
+        "validator": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
+        # MLFlowHandler config for the evaluator
+        "evaluator": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
+    },
 }
 
 
