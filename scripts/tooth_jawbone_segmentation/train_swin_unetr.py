@@ -13,10 +13,11 @@ from monai.losses import DiceCELoss
 from monai.metrics import DiceMetric
 from monai.networks.nets import SwinUNETR
 from monai.transforms import AsDiscrete, Compose, LoadImaged, Orientationd, RandFlipd, RandShiftIntensityd, \
-    RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld, SpatialCropd, CenterSpatialCropd, MapLabelValued
+    RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld, SpatialCropd, CenterSpatialCropd, MapLabelValued, Rand3DElasticd
 from scripts import get_data_dir, normalize_image_to_uint8
 from scripts.tooth_jawbone_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
     CLASS_COUNT, CACHE_DIR, LOAD_FROM
+
 torch.multiprocessing.set_sharing_strategy('file_system')
 tensorboard_writer = SummaryWriter(str(work_dir))
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -41,31 +42,38 @@ train_transforms = Compose(
             image_threshold=0,
             allow_smaller=True,
         ),
-        RandFlipd(
-            keys=["image", "label"],
-            spatial_axis=[0],
-            prob=0.10,
-        ),
-        RandFlipd(
-            keys=["image", "label"],
-            spatial_axis=[1],
-            prob=0.10,
-        ),
-        RandFlipd(
-            keys=["image", "label"],
-            spatial_axis=[2],
-            prob=0.10,
-        ),
-        RandRotate90d(
-            keys=["image", "label"],
-            prob=0.10,
-            max_k=3,
-        ),
+        # RandFlipd(
+        #     keys=["image", "label"],
+        #     spatial_axis=[0],
+        #     prob=0.10,
+        # ),
+        # RandFlipd(
+        #     keys=["image", "label"],
+        #     spatial_axis=[1],
+        #     prob=0.10,
+        # ),
+        # RandFlipd(
+        #     keys=["image", "label"],
+        #     spatial_axis=[2],
+        #     prob=0.10,
+        # ),
+        # RandRotate90d(
+        #     keys=["image", "label"],
+        #     prob=0.10,
+        #     max_k=3,
+        # ),
         RandShiftIntensityd(
             keys=["image"],
             offsets=0.10,
             prob=0.50,
         ),
+        Rand3DElasticd(keys=["image", "label"], sigma_range=(3, 4),
+                       magnitude_range=(50, 100),
+                       prob=0.5,
+                       # rotate_range=1,
+                       # scale_range=(0.1, 0.1),
+                       padding_mode="zeros",
+                       ),
     ]
 )
 val_transforms = Compose(
@@ -167,7 +175,7 @@ def validation(epoch_iterator_val):
         for step, batch in enumerate(epoch_iterator_val):
             val_inputs, val_labels = (batch["image"].cuda(), batch["label"].cuda())
             with torch.cuda.amp.autocast():
-                val_outputs = sliding_window_inference(val_inputs, IMAGE_SIZE, 4, model)
+                val_outputs = sliding_window_inference(val_inputs, IMAGE_SIZE, 1, model)
             val_labels_list = decollate_batch(val_labels)
             val_labels_convert = [
                 post_label(val_label_tensor) for val_label_tensor in val_labels_list
