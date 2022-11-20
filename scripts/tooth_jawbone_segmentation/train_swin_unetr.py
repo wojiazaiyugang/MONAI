@@ -68,7 +68,7 @@ train_transforms = Compose(
             prob=0.50,
         ),
         Rand3DElasticd(keys=["image", "label"], sigma_range=(3, 4),
-                       magnitude_range=(50, 100),
+                       magnitude_range=(50, 200),
                        prob=0.5,
                        # rotate_range=1,
                        # scale_range=(0.1, 0.1),
