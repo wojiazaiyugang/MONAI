@@ -384,7 +384,7 @@ def get_all_bundles_list(
 
     bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
     bundles_list = []
-    for bundle_name in bundles_info.keys():
+    for bundle_name in bundles_info:
         latest_version = sorted(bundles_info[bundle_name].keys())[-1]
         bundles_list.append((bundle_name, latest_version))
 
@@ -864,8 +864,8 @@ def init_bundle(
     ckpt_file: Optional[PathLike] = None,
     network: Optional[torch.nn.Module] = None,
     dataset_license: bool = False,
-    metadata_str: Union[Dict, str] = DEFAULT_METADATA,
-    inference_str: Union[Dict, str] = DEFAULT_INFERENCE,
+    metadata_str: Union[Dict, str, None] = None,
+    inference_str: Union[Dict, str, None] = None,
 ):
     """
     Initialise a new bundle directory with some default configuration files and optionally network weights.
@@ -883,6 +883,10 @@ def init_bundle(
         dataset_license: if `True`, a default license file called "data_license.txt" will be produced. This
             file is required if there are any license conditions stated for data your bundle uses.
     """
+    if metadata_str is None:
+        metadata_str = DEFAULT_METADATA
+    if inference_str is None:
+        inference_str = DEFAULT_INFERENCE
 
     bundle_dir = Path(bundle_dir).absolute()
 
