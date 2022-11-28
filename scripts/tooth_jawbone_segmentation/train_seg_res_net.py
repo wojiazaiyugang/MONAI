@@ -77,7 +77,7 @@ val_transform = Compose(
     ]
 )
 
-dataset_dir = Path("/media/3TB/data/xiaoliutech/20221020")
+dataset_dir = Path("/media/3TB/data/xiaoliutech/20221114")
 dataset = []
 for file in dataset_dir.iterdir():
     if "image" in file.name:

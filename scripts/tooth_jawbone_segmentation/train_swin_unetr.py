@@ -13,7 +13,8 @@ from monai.losses import DiceCELoss
 from monai.metrics import DiceMetric
 from monai.networks.nets import SwinUNETR
 from monai.transforms import AsDiscrete, Compose, LoadImaged, Orientationd, RandFlipd, RandShiftIntensityd, \
-    RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld, SpatialCropd, CenterSpatialCropd, MapLabelValued, Rand3DElasticd
+    RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld, SpatialCropd, CenterSpatialCropd, MapLabelValued, Rand3DElasticd, \
+    RandScaleIntensityd
 from scripts import get_data_dir, normalize_image_to_uint8
 from scripts.tooth_jawbone_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
     CLASS_COUNT, CACHE_DIR, LOAD_FROM
@@ -62,14 +63,19 @@ train_transforms = Compose(
         #     prob=0.10,
         #     max_k=3,
         # ),
+        RandScaleIntensityd(
+            keys=["image"],
+            factors=0.10,
+            prob=1,
+        ),
         RandShiftIntensityd(
             keys=["image"],
             offsets=0.10,
-            prob=0.50,
+            prob=1,
         ),
         Rand3DElasticd(keys=["image", "label"], sigma_range=(3, 4),
                        magnitude_range=(50, 200),
-                       prob=0.5,
+                       prob=1,
                        # rotate_range=1,
                        # scale_range=(0.1, 0.1),
                        padding_mode="zeros",
