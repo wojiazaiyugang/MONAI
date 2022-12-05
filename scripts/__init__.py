@@ -2,6 +2,8 @@ from pathlib import Path
 import numpy as np
 from typing import List, Dict
 
+MLFLOW_TRACKING_URI = "file:///media/3TB/mlruns"
+
 
 def get_project_dir() -> Path:
     """

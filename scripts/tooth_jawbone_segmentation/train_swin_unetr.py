@@ -1,7 +1,9 @@
+import tempfile
 import os
 from pathlib import Path
 
 import cv2
+import mlflow
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -37,7 +39,7 @@ train_transforms = Compose(
             label_key="label",
             spatial_size=IMAGE_SIZE,
             pos=1,
-            neg=0,
+            neg=1,
             num_samples=1,
             image_key="image",
             image_threshold=0,
@@ -63,23 +65,23 @@ train_transforms = Compose(
         #     prob=0.10,
         #     max_k=3,
         # ),
-        RandScaleIntensityd(
-            keys=["image"],
-            factors=0.10,
-            prob=1,
-        ),
+        # RandScaleIntensityd(
+        #     keys=["image"],
+        #     factors=0.10,
+        #     prob=1,
+        # ),
         RandShiftIntensityd(
             keys=["image"],
             offsets=0.10,
-            prob=1,
+            prob=0.5,
         ),
-        Rand3DElasticd(keys=["image", "label"], sigma_range=(3, 4),
-                       magnitude_range=(50, 200),
-                       prob=1,
-                       # rotate_range=1,
-                       # scale_range=(0.1, 0.1),
-                       padding_mode="zeros",
-                       ),
+        # Rand3DElasticd(keys=["image", "label"], sigma_range=(3, 4),
+        #                magnitude_range=(50, 200),
+        #                prob=0.5,
+        #                # rotate_range=1,
+        #                # scale_range=(0.1, 0.1),
+        #                padding_mode="zeros",
+        #                ),
     ]
 )
 val_transforms = Compose(
@@ -94,7 +96,7 @@ val_transforms = Compose(
             label_key="label",
             spatial_size=IMAGE_SIZE,
             pos=1,
-            neg=0,
+            neg=1,
             num_samples=1,
             image_key="image",
             image_threshold=0,
@@ -104,7 +106,8 @@ val_transforms = Compose(
     ]
 )
 
-dataset_dir = Path("/media/3TB/data/xiaoliutech/20221114")
+dataset_dir = Path("/media/3TB/data/xiaoliutech/20221124")
+mlflow.log_param("dataset", "20221124")
 dataset = []
 for file in dataset_dir.iterdir():
     if "image" in file.name:
@@ -145,6 +148,7 @@ model = SwinUNETR(
     feature_size=48,
     use_checkpoint=True,
 ).to(device)
+mlflow.log_param("model", "SwinUNETR")
 
 if LOAD_FROM:
     model_dict = torch.load(LOAD_FROM)
@@ -220,6 +224,10 @@ def validation(epoch_iterator_val):
                         color = (0, 255, 255)
                     pred_image[pred.cpu().numpy() > 0] = color
                 log_image = np.hstack((gt_image, pred_image))
+                with tempfile.TemporaryDirectory() as tempdir:
+                    image_file = Path(tempdir).joinpath(f"step_{global_step}.png")
+                    cv2.imwrite(str(image_file), log_image)
+                    mlflow.log_artifact(str(image_file), artifact_path="val_images")
                 log_image = cv2.cvtColor(log_image, cv2.COLOR_BGR2RGB)
                 tensorboard_writer.add_image(tag="val_image",
                                              img_tensor=log_image.transpose([2, 1, 0]),
@@ -252,6 +260,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
             % (global_step, max_iterations, loss)
         )
         tensorboard_writer.add_scalar("step_loss", loss, global_step)
+        mlflow.log_metric("step_loss", loss, global_step)
         if (
                 global_step % eval_num == 0 and global_step != 0
         ) or global_step == max_iterations:
@@ -263,10 +272,13 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
             epoch_loss_values.append(epoch_loss)
             metric_values.append(dice_val)
             tensorboard_writer.add_scalar("dice_val", dice_val, global_step)
+            mlflow.log_metric("Dice", dice_val, global_step)
             if dice_val > dice_val_best:
                 dice_val_best = dice_val
                 global_step_best = global_step
-                torch.save(model.state_dict(), str(work_dir.joinpath("best_metric_model.pth")))
+                save_file = work_dir.joinpath(f"jawbone_seg_swin_unetr_20221124_Dice_{round(dice_val_best, 4)}_2022XXXX.pth")
+                torch.save(model.state_dict(), str(save_file))
+                mlflow.log_artifact(str(save_file), artifact_path="checkpoints")
                 print(
                     "Model Was Saved ! Current Best Avg. Dice: {} Current Avg. Dice: {}".format(
                         dice_val_best, dice_val
