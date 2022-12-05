@@ -3,9 +3,7 @@ from pathlib import Path
 import mlflow
 from monai.transforms import ScaleIntensityRanged
 from scripts import MLFLOW_TRACKING_URI
-
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-experiment = mlflow.set_experiment(experiment_name="颌骨分割")
+experiment = mlflow.get_experiment_by_name("颌骨分割")
 mlflow.start_run(experiment_id=experiment.experiment_id, run_name="image_size 160 + 数据增强")
 
 work_dir = Path(__file__).parent.resolve().joinpath("logs").joinpath("swin_unetr").joinpath("33")
