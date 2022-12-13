@@ -1,8 +1,10 @@
 import os
 import random
+import tempfile
 import time
 from pathlib import Path
 
+import mlflow
 import cv2
 import numpy as np
 import torch
@@ -19,7 +21,7 @@ from monai.transforms import (
     Compose,
     LoadImaged,
     Orientationd,
-    RandFlipd,
+    RandFlipd,RandRotate90d,
     RandScaleIntensityd,
     RandShiftIntensityd,
     RandSpatialCropd,
@@ -33,31 +35,52 @@ tensorboard_writer = SummaryWriter(str(work_dir))
 
 train_transform = Compose(
     [
-        LoadImaged(keys=["image", "label"]),
-        EnsureChannelFirstd(keys=["image", "label"]),
-        EnsureTyped(keys=["image", "label"]),
+        LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
+        scale_intensity_range,
+        EnsureTyped(keys=["image", "label"]),
         # RandSpatialCropd(keys=["image", "label"], roi_size=IMAGE_SIZE, random_size=False),
         RandCropByPosNegLabeld(
             keys=["image", "label"],
             label_key="label",
             spatial_size=IMAGE_SIZE,
             pos=1,
-            neg=0,
-            num_samples=1,
+            neg=1,
+            num_samples=2,
             image_key="image",
+            image_threshold=0,
+            allow_smaller=True,
         ),
-        # RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=0),
-        # RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=1),
-        # RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=2),
-        scale_intensity_range
+        RandFlipd(
+            keys=["image", "label"],
+            spatial_axis=[0],
+            prob=0.50,
+        ),
+        RandFlipd(
+            keys=["image", "label"],
+            spatial_axis=[1],
+            prob=0.50,
+        ),
+        RandFlipd(
+            keys=["image", "label"],
+            spatial_axis=[2],
+            prob=0.50,
+        ),
+        RandRotate90d(
+            keys=["image", "label"],
+            prob=0.50,
+            max_k=3,
+        ),
+        RandShiftIntensityd(
+            keys=["image"],
+            offsets=0.10,
+            prob=0.5,
+        ),
     ]
 )
 val_transform = Compose(
     [
-        LoadImaged(keys=["image", "label"]),
-        EnsureChannelFirstd(keys=["image", "label"]),
-        EnsureTyped(keys=["image", "label"]),
+        LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
         RandCropByPosNegLabeld(
@@ -65,14 +88,18 @@ val_transform = Compose(
             label_key="label",
             spatial_size=IMAGE_SIZE,
             pos=1,
-            neg=0,
+            neg=1,
             num_samples=1,
             image_key="image",
+            image_threshold=0,
+            allow_smaller=True,
         ),
+EnsureTyped(keys=["image", "label"]),
     ]
 )
 
-dataset_dir = Path("/media/3TB/data/xiaoliutech/20221020")
+dataset_dir = Path("/media/3TB/data/xiaoliutech/20221124")
+mlflow.log_param("dataset", "20221124")
 dataset = []
 for file in dataset_dir.iterdir():
     if "image" in file.name:
@@ -96,8 +123,8 @@ val_ds = PersistentDataset(
     cache_dir=CACHE_DIR,
 )
 
-train_loader = DataLoader(train_ds, batch_size=4, shuffle=True, num_workers=4)
-val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=4)
+train_loader = DataLoader(train_ds, batch_size=1, shuffle=False)
+val_loader = DataLoader(val_ds, batch_size=1, shuffle=False)
 
 max_epochs = 500
 val_interval = 1
@@ -110,6 +137,8 @@ model = BasicUNetPlusPlus(
     in_channels=1,
     out_channels=CLASS_COUNT,
 ).to(device)
+mlflow.log_param("model", "UnetPlusPlus")
+
 loss_function = DiceLoss(smooth_nr=0, smooth_dr=1e-5, squared_pred=True, to_onehot_y=False, sigmoid=True)
 optimizer = torch.optim.Adam(model.parameters(), 3e-4, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
@@ -186,6 +215,7 @@ for epoch in range(max_epochs):
             f", step time: {(time.time() - step_start):.4f}"
         )
         tensorboard_writer.add_scalar("step_loss", loss.item(), global_step)
+        mlflow.log_metric("step_loss", loss.item(), global_step)
     lr_scheduler.step()
     epoch_loss /= step
     epoch_loss_values.append(epoch_loss)
@@ -218,6 +248,10 @@ for epoch in range(max_epochs):
                 pred_image[pred_label == i + 1] = color
             log_image = np.hstack((gt_image, pred_image))
             log_image = cv2.cvtColor(log_image, cv2.COLOR_BGR2RGB)
+            with tempfile.TemporaryDirectory() as tempdir:
+                image_file = Path(tempdir).joinpath(f"step_{global_step}.png")
+                cv2.imwrite(str(image_file), log_image)
+                mlflow.log_artifact(str(image_file), artifact_path="val_images")
             tensorboard_writer.add_image(tag="val_image",
                                          img_tensor=log_image.transpose([2, 1, 0]),
                                          global_step=global_step)
@@ -234,6 +268,7 @@ for epoch in range(max_epochs):
             dice_metric.reset()
             dice_metric_batch.reset()
             tensorboard_writer.add_scalar("metric", metric, global_step)
+            mlflow.log_metric("Dice", metric, global_step)
 
             if metric > best_metric:
                 best_metric = metric
@@ -241,10 +276,13 @@ for epoch in range(max_epochs):
                 best_metrics_epochs_and_time[0].append(best_metric)
                 best_metrics_epochs_and_time[1].append(best_metric_epoch)
                 best_metrics_epochs_and_time[2].append(time.time() - total_start)
+                save_file = work_dir.joinpath(f"jawbone_seg_unetplusplus_20221124_Dice_{round(metric, 4)}_2022XXXX.pth")
                 torch.save(
                     model.state_dict(),
-                    os.path.join(work_dir, "best_metric_model.pth"),
+                    str(save_file),
                 )
+                mlflow.log_artifact(str(save_file), artifact_path="checkpoints")
+                mlflow.set_tag("best_dice", metric)
                 print("saved new best metric model")
             print(
                 f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"

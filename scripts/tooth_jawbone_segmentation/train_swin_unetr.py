@@ -45,26 +45,26 @@ train_transforms = Compose(
             image_threshold=0,
             allow_smaller=True,
         ),
-        # RandFlipd(
-        #     keys=["image", "label"],
-        #     spatial_axis=[0],
-        #     prob=0.10,
-        # ),
-        # RandFlipd(
-        #     keys=["image", "label"],
-        #     spatial_axis=[1],
-        #     prob=0.10,
-        # ),
-        # RandFlipd(
-        #     keys=["image", "label"],
-        #     spatial_axis=[2],
-        #     prob=0.10,
-        # ),
-        # RandRotate90d(
-        #     keys=["image", "label"],
-        #     prob=0.10,
-        #     max_k=3,
-        # ),
+        RandFlipd(
+            keys=["image", "label"],
+            spatial_axis=[0],
+            prob=0.50,
+        ),
+        RandFlipd(
+            keys=["image", "label"],
+            spatial_axis=[1],
+            prob=0.50,
+        ),
+        RandFlipd(
+            keys=["image", "label"],
+            spatial_axis=[2],
+            prob=0.50,
+        ),
+        RandRotate90d(
+            keys=["image", "label"],
+            prob=0.50,
+            max_k=3,
+        ),
         # RandScaleIntensityd(
         #     keys=["image"],
         #     factors=0.10,
