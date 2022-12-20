@@ -18,16 +18,16 @@ import nibabel as nib
 import numpy as np
 import torch
 
-from monai.apps.auto3dseg import AutoRunner
+from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder, BundleGen, DataAnalyzer
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
+from monai.utils.enums import AlgoEnsembleKeys
 from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
-_, has_nni = optional_import("nni")
 
-sim_datalist: Dict[str, List[Dict]] = {
+fake_datalist: Dict[str, List[Dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
     "training": [
         {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
@@ -66,107 +66,85 @@ pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 @skip_if_quick
 @SkipIfBeforePyTorchVersion((1, 9, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
-class TestAutoRunner(unittest.TestCase):
+class TestEnsembleGpuCustomization(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
+
+    @skip_if_no_cuda
+    def test_ensemble_gpu_customization(self) -> None:
         test_path = self.test_dir.name
 
-        sim_dataroot = os.path.join(test_path, "dataroot")
-        if not os.path.isdir(sim_dataroot):
-            os.makedirs(sim_dataroot)
+        dataroot = os.path.join(test_path, "dataroot")
+        work_dir = os.path.join(test_path, "workdir")
+
+        da_output_yaml = os.path.join(work_dir, "datastats.yaml")
+        data_src_cfg = os.path.join(work_dir, "data_src_cfg.yaml")
+
+        if not os.path.isdir(dataroot):
+            os.makedirs(dataroot)
+
+        if not os.path.isdir(work_dir):
+            os.makedirs(work_dir)
 
         # Generate a fake dataset
-        for d in sim_datalist["testing"] + sim_datalist["training"]:
+        for d in fake_datalist["testing"] + fake_datalist["training"]:
             im, seg = create_test_image_3d(24, 24, 24, rad_max=10, num_seg_classes=1)
             nib_image = nib.Nifti1Image(im, affine=np.eye(4))
-            image_fpath = os.path.join(sim_dataroot, d["image"])
+            image_fpath = os.path.join(dataroot, d["image"])
             nib.save(nib_image, image_fpath)
 
             if "label" in d:
                 nib_image = nib.Nifti1Image(seg, affine=np.eye(4))
-                label_fpath = os.path.join(sim_dataroot, d["label"])
+                label_fpath = os.path.join(dataroot, d["label"])
                 nib.save(nib_image, label_fpath)
 
-        sim_json_datalist = os.path.join(sim_dataroot, "sim_input.json")
-        ConfigParser.export_config_file(sim_datalist, sim_json_datalist)
+        # write to a json file
+        fake_json_datalist = os.path.join(dataroot, "fake_input.json")
+        ConfigParser.export_config_file(fake_datalist, fake_json_datalist)
 
-        data_src_cfg = os.path.join(test_path, "data_src_cfg.yaml")
+        da = DataAnalyzer(fake_json_datalist, dataroot, output_path=da_output_yaml)
+        da.get_all_case_stats()
+
         data_src = {
-            "name": "sim_data",
+            "name": "fake_data",
             "task": "segmentation",
             "modality": "MRI",
-            "datalist": sim_json_datalist,
-            "dataroot": sim_dataroot,
+            "datalist": fake_json_datalist,
+            "dataroot": dataroot,
             "multigpu": False,
             "class_names": ["label_class"],
         }
 
         ConfigParser.export_config_file(data_src, data_src_cfg)
-        self.data_src_cfg = data_src_cfg
-        self.test_path = test_path
 
-    @skip_if_no_cuda
-    def test_autorunner(self) -> None:
-        work_dir = os.path.join(self.test_path, "work_dir")
-        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg)
-        runner.set_training_params(train_param)  # 2 epochs
-        runner.set_num_fold(1)
         with skip_if_downloading_fails():
-            runner.run()
+            bundle_generator = BundleGen(
+                algo_path=work_dir, data_stats_filename=da_output_yaml, data_src_cfg_name=data_src_cfg
+            )
 
-    @skip_if_no_cuda
-    def test_autorunner_ensemble(self) -> None:
-        work_dir = os.path.join(self.test_path, "work_dir")
-        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg)
-        runner.set_training_params(train_param)  # 2 epochs
-        runner.set_ensemble_method("AlgoEnsembleBestByFold")
-        runner.set_num_fold(1)
-        with skip_if_downloading_fails():
-            runner.run()
-
-    @skip_if_no_cuda
-    def test_autorunner_gpu_customization(self) -> None:
-        work_dir = os.path.join(self.test_path, "work_dir")
-        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg)
         gpu_customization_specs = {
             "universal": {"num_trials": 1, "range_num_images_per_batch": [1, 2], "range_num_sw_batch_size": [1, 2]}
         }
-        runner.set_gpu_customization(gpu_customization=True, gpu_customization_specs=gpu_customization_specs)
-        runner.set_training_params(train_param)  # 2 epochs
-        runner.set_num_fold(1)
-        with skip_if_downloading_fails():
-            runner.run()
+        bundle_generator.generate(
+            work_dir, num_fold=1, gpu_customization=True, gpu_customization_specs=gpu_customization_specs
+        )
+        history = bundle_generator.get_history()
 
-    @skip_if_no_cuda
-    @unittest.skipIf(not has_nni, "nni required")
-    def test_autorunner_hpo(self) -> None:
-        work_dir = os.path.join(self.test_path, "work_dir")
-        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg, hpo=True, ensemble=False)
-        hpo_param = {
-            "CUDA_VISIBLE_DEVICES": train_param["CUDA_VISIBLE_DEVICES"],
-            "num_epochs_per_validation": train_param["num_epochs_per_validation"],
-            "num_images_per_batch": train_param["num_images_per_batch"],
-            "num_epochs": train_param["num_epochs"],
-            "num_warmup_epochs": train_param["num_warmup_epochs"],
-            "use_pretrain": train_param["use_pretrain"],
-            "pretrained_path": train_param["pretrained_path"],
-            # below are to shorten the time for dints
-            "training#num_epochs_per_validation": train_param["num_epochs_per_validation"],
-            "training#num_images_per_batch": train_param["num_images_per_batch"],
-            "training#num_epochs": train_param["num_epochs"],
-            "training#num_warmup_epochs": train_param["num_warmup_epochs"],
-            "searching#num_epochs_per_validation": train_param["num_epochs_per_validation"],
-            "searching#num_images_per_batch": train_param["num_images_per_batch"],
-            "searching#num_epochs": train_param["num_epochs"],
-            "searching#num_warmup_epochs": train_param["num_warmup_epochs"],
-            "nni_dry_run": True,
-        }
-        search_space = {"learning_rate": {"_type": "choice", "_value": [0.0001, 0.001, 0.01, 0.1]}}
-        runner.set_num_fold(1)
-        runner.set_nni_search_space(search_space)
-        runner.set_hpo_params(params=hpo_param)
-        with skip_if_downloading_fails():
-            runner.run()
+        for h in history:
+            self.assertEqual(len(h.keys()), 1, "each record should have one model")
+            for _, algo in h.items():
+                algo.train(train_param)
+
+        builder = AlgoEnsembleBuilder(history, data_src_cfg)
+        builder.set_ensemble_method(AlgoEnsembleBestN(n_best=2))
+        ensemble = builder.get_ensemble()
+        preds = ensemble(pred_param)
+        self.assertTupleEqual(preds[0].shape, (2, 24, 24, 24))
+
+        builder.set_ensemble_method(AlgoEnsembleBestByFold(1))
+        ensemble = builder.get_ensemble()
+        for algo in ensemble.get_algo_ensemble():
+            print(algo[AlgoEnsembleKeys.ID])
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
