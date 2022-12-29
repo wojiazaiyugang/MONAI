@@ -45,26 +45,26 @@ train_transforms = Compose(
             image_threshold=0,
             allow_smaller=True,
         ),
-        RandFlipd(
-            keys=["image", "label"],
-            spatial_axis=[0],
-            prob=0.50,
-        ),
-        RandFlipd(
-            keys=["image", "label"],
-            spatial_axis=[1],
-            prob=0.50,
-        ),
-        RandFlipd(
-            keys=["image", "label"],
-            spatial_axis=[2],
-            prob=0.50,
-        ),
-        RandRotate90d(
-            keys=["image", "label"],
-            prob=0.50,
-            max_k=3,
-        ),
+        # RandFlipd(
+        #     keys=["image", "label"],
+        #     spatial_axis=[0],
+        #     prob=0.50,
+        # ),
+        # RandFlipd(
+        #     keys=["image", "label"],
+        #     spatial_axis=[1],
+        #     prob=0.50,
+        # ),
+        # RandFlipd(
+        #     keys=["image", "label"],
+        #     spatial_axis=[2],
+        #     prob=0.50,
+        # ),
+        # RandRotate90d(
+        #     keys=["image", "label"],
+        #     prob=0.50,
+        #     max_k=3,
+        # ),
         # RandScaleIntensityd(
         #     keys=["image"],
         #     factors=0.10,
@@ -91,17 +91,18 @@ val_transforms = Compose(
         scale_intensity_range,
         # MapLabelValued(keys="label", orig_labels=[4], target_labels=[3]),
         # SpatialCropd(keys=["image", "label"], roi_start=(0, 0, 190), roi_end=(10000, 10000, 290)),
-        RandCropByPosNegLabeld(
-            keys=["image", "label"],
-            label_key="label",
-            spatial_size=IMAGE_SIZE,
-            pos=1,
-            neg=1,
-            num_samples=1,
-            image_key="image",
-            image_threshold=0,
-            allow_smaller=True,
-        ),
+        CropForegroundd(keys=["image", "label"], source_key="image"),
+        # RandCropByPosNegLabeld(
+        #     keys=["image", "label"],
+        #     label_key="label",
+        #     spatial_size=IMAGE_SIZE,
+        #     pos=1,
+        #     neg=1,
+        #     num_samples=1,
+        #     image_key="image",
+        #     image_threshold=0,
+        #     allow_smaller=True,
+        # ),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=True),
     ]
 )
@@ -279,6 +280,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
                 save_file = work_dir.joinpath(f"jawbone_seg_swin_unetr_20221124_Dice_{round(dice_val_best, 4)}_2022XXXX.pth")
                 torch.save(model.state_dict(), str(save_file))
                 mlflow.log_artifact(str(save_file), artifact_path="checkpoints")
+                mlflow.set_tag("best_rand_dice", round(dice_val_best, 4))
                 print(
                     "Model Was Saved ! Current Best Avg. Dice: {} Current Avg. Dice: {}".format(
                         dice_val_best, dice_val
@@ -294,7 +296,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
     return global_step, dice_val_best, global_step_best
 
 
-max_iterations = 50000
+max_iterations = 100000
 eval_num = 500
 post_label = AsDiscrete(to_onehot=CLASS_COUNT)
 post_pred = AsDiscrete(argmax=True, to_onehot=CLASS_COUNT)

@@ -13,8 +13,8 @@ mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 experiment = mlflow.get_experiment_by_name("颌骨分割")
 if not experiment:
     raise ValueError("实验不存在")
-mlflow.start_run(experiment_id=experiment.experiment_id, run_name="unet_plus_plus_image_size_128_翻转旋转")
-
+run = mlflow.start_run(experiment_id=experiment.experiment_id, run_name="unet_plus_plus_image_size_128_翻转旋转")
+mlflow.set_tag("run_id", run.info.run_id)
 IMAGE_SIZE = (128, 128, 128)  # 数据训练size
 mlflow.log_param('image_size', str(IMAGE_SIZE))
 
@@ -29,6 +29,7 @@ scale_intensity_range = ScaleIntensityRanged(
 
 CLASS_COUNT = 3  # 分类类别，0-背景 1 2 颌骨 3 4 牙齿
 CACHE_DIR = Path("/home/yujiannan/Projects/MONAI/data/temp/unet++")
+
 mlflow.log_artifact(__file__, artifact_path="code")
 mlflow.log_artifact("./train_unetplusplus.py", artifact_path="code")
 with tempfile.TemporaryDirectory() as temp_dir:
