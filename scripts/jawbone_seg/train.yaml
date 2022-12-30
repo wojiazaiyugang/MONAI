@@ -1,9 +1,0 @@
-name: Task500_Jawbone
-task: segmentation
-
-modality: CT
-datalist: ./dataset.json
-dataroot: /media/3TB/data/xiaoliutech/20221124
-
-
-class_names: [upper, lower]
