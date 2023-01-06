@@ -1,5 +1,6 @@
 import gc
 import json
+import random
 from copy import deepcopy
 from itertools import chain
 from pathlib import Path
@@ -657,12 +658,17 @@ class RandomElasticDeformation(RandomizableTransform, MapTransform):
     def __init__(
             self,
             keys: KeysCollection,
+            prob: float = 0.5,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys=False)
         self.transform = torchio.RandomElasticDeformation(max_displacement=50)
+        self.prob = prob
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.transform(d[key])
-        return d
+        if random.random() < self.prob:
+            d = dict(data)
+            for key in self.key_iterator(d):
+                d[key] = self.transform(d[key].cpu()).cuda()
+            return d
+        else:
+            return data

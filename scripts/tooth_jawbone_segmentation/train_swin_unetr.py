@@ -1,3 +1,4 @@
+import random
 import tempfile
 import os
 from pathlib import Path
@@ -202,7 +203,7 @@ def validation(epoch_iterator_val):
                 "Validate (%d / %d Steps)" % (global_step, 10.0)
             )
             if step == 0:
-                slice_id = 10
+                slice_id = random.randint(20, IMAGE_SIZE[2] - 20)
                 image = val_inputs[0][0].cpu().numpy()[..., slice_id]
                 label = val_labels[0][0].cpu().numpy()[..., slice_id]
                 image = normalize_image_to_uint8(image)
