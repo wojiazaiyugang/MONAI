@@ -18,6 +18,7 @@ from monai.transforms import AsDiscrete, Compose, LoadImaged, Orientationd, Rand
     RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld, SpatialCropd, CenterSpatialCropd, MapLabelValued, Rand3DElasticd, \
     RandScaleIntensityd
 from scripts import get_data_dir, normalize_image_to_uint8
+from scripts.transforms import RandomElasticDeformation
 from scripts.tooth_jawbone_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
     CLASS_COUNT, CACHE_DIR, LOAD_FROM
 
@@ -34,6 +35,7 @@ train_transforms = Compose(
         # MapLabelValued(keys="label", orig_labels=[4], target_labels=[3]),
         # CropForegroundd(keys=["image", "label"], source_key="image"),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
+        RandomElasticDeformation(keys=["image", "label"]),
         RandCropByPosNegLabeld(
             keys=["image", "label"],
             label_key="label",
@@ -296,7 +298,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
     return global_step, dice_val_best, global_step_best
 
 
-max_iterations = 100000
+max_iterations = 150000
 eval_num = 500
 post_label = AsDiscrete(to_onehot=CLASS_COUNT)
 post_pred = AsDiscrete(argmax=True, to_onehot=CLASS_COUNT)

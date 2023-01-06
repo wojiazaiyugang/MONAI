@@ -8,6 +8,7 @@ from typing import Mapping, Hashable, Dict, Any, Optional, Union, Sequence, List
 import numpy as np
 import torch
 from torch.nn.functional import conv3d
+import torchio
 
 from monai.config import KeysCollection, NdarrayOrTensor, IndexSelection
 from monai.data import MetaTensor
@@ -645,3 +646,23 @@ class CropToothClassificationInstance(MapTransform):
                 "label": torch.nn.functional.one_hot(torch.tensor(np.array(int(tooth_label) - 1)), num_classes=32).float(),
             })
         return result
+
+
+class RandomElasticDeformation(RandomizableTransform, MapTransform):
+    """
+    3D弹性变形
+    """
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+            self,
+            keys: KeysCollection,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys=False)
+        self.transform = torchio.RandomElasticDeformation(max_displacement=50)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.transform(d[key])
+        return d

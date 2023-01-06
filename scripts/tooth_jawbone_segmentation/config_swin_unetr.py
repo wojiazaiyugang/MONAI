@@ -10,12 +10,12 @@ mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 experiment = mlflow.get_experiment_by_name("颌骨分割")
 if not experiment:
     raise ValueError("实验不存在")
-run = mlflow.start_run(experiment_id=experiment.experiment_id, run_name="swin_unetr_image_size_128_无数据增强_scale_avedice")
+run = mlflow.start_run(experiment_id=experiment.experiment_id, run_name="swin_unetr_image_size_96_弹性形变")
 mlflow.set_tag("run_id", run.info.run_id)
 work_dir = Path(__file__).parent.resolve().joinpath("logs").joinpath("swin_unetr").joinpath("34")
 
 SPACING = (0.25, 0.25, 0.25)  # 数据预处理
-IMAGE_SIZE = (128, 128, 128)  # 数据训练size
+IMAGE_SIZE = (96, 96, 96)  # 数据训练size
 mlflow.log_param('image_size', str(IMAGE_SIZE))
 
 scale_intensity_range = ScaleIntensityRanged(
