@@ -17,7 +17,7 @@ from monai.metrics import DiceMetric
 from monai.networks.nets import SwinUNETR
 from monai.transforms import AsDiscrete, Compose, LoadImaged, Orientationd, RandFlipd, RandShiftIntensityd, \
     RandRotate90d, EnsureTyped, CropForegroundd, RandCropByPosNegLabeld, SpatialCropd, CenterSpatialCropd, MapLabelValued, Rand3DElasticd, \
-    RandScaleIntensityd
+    RandScaleIntensityd, RandSpatialCropd
 from scripts import get_data_dir, normalize_image_to_uint8
 from scripts.transforms import RandomElasticDeformation
 from scripts.tooth_jawbone_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
@@ -33,58 +33,15 @@ train_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
-        # MapLabelValued(keys="label", orig_labels=[4], target_labels=[3]),
-        # CropForegroundd(keys=["image", "label"], source_key="image"),
-        EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
+        RandSpatialCropd(keys=["image", "label"], roi_size=(IMAGE_SIZE[0]+20,IMAGE_SIZE[1]+20,IMAGE_SIZE[2]+20), random_size=False),
         RandomElasticDeformation(keys=["image", "label"]),
-        RandCropByPosNegLabeld(
-            keys=["image", "label"],
-            label_key="label",
-            spatial_size=IMAGE_SIZE,
-            pos=1,
-            neg=1,
-            num_samples=1,
-            image_key="image",
-            image_threshold=0,
-            allow_smaller=True,
-        ),
-        # RandFlipd(
-        #     keys=["image", "label"],
-        #     spatial_axis=[0],
-        #     prob=0.50,
-        # ),
-        # RandFlipd(
-        #     keys=["image", "label"],
-        #     spatial_axis=[1],
-        #     prob=0.50,
-        # ),
-        # RandFlipd(
-        #     keys=["image", "label"],
-        #     spatial_axis=[2],
-        #     prob=0.50,
-        # ),
-        # RandRotate90d(
-        #     keys=["image", "label"],
-        #     prob=0.50,
-        #     max_k=3,
-        # ),
-        # RandScaleIntensityd(
-        #     keys=["image"],
-        #     factors=0.10,
-        #     prob=1,
-        # ),
+        EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
+        CenterSpatialCropd(keys=["image", "label"], roi_size=IMAGE_SIZE),
         RandShiftIntensityd(
             keys=["image"],
             offsets=0.10,
             prob=0.5,
         ),
-        # Rand3DElasticd(keys=["image", "label"], sigma_range=(3, 4),
-        #                magnitude_range=(50, 200),
-        #                prob=0.5,
-        #                # rotate_range=1,
-        #                # scale_range=(0.1, 0.1),
-        #                padding_mode="zeros",
-        #                ),
     ]
 )
 val_transforms = Compose(

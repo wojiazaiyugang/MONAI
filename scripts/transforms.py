@@ -668,7 +668,7 @@ class RandomElasticDeformation(RandomizableTransform, MapTransform):
         if random.random() < self.prob:
             d = dict(data)
             for key in self.key_iterator(d):
-                d[key] = self.transform(d[key].cpu()).cuda()
+                d[key] = self.transform(d[key])
             return d
         else:
             return data

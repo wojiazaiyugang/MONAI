@@ -28,8 +28,9 @@ scale_intensity_range = ScaleIntensityRanged(
 )
 
 CLASS_COUNT = 3  # 分类类别，0-背景 1-上颌骨 2-下颌骨
-CACHE_DIR = Path("/home/yujiannan/Projects/MONAI/data/temp/jawbone_segmentation_swin_unetr")
+CACHE_DIR = Path("/home/yujiannan/Projects/MONAI/data/temp/jawbone_segmentation_swin_unetr1")
 LOAD_FROM = Path("/home/yujiannan/Projects/research-contributions/SwinUNETR/Pretrain/logs/4/model_bestValRMSE.pt")
+LOAD_FROM = None
 
 mlflow.log_artifact(__file__, artifact_path="code")
 mlflow.log_artifact("./train_swin_unetr.py", artifact_path="code")
