@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 # have to explicitly bring these in here to resolve circular import issues
 from .aliases import alias, resolve_name
 from .decorators import MethodReplacer, RestartGenerator
@@ -18,9 +20,12 @@ from .enums import (
     Average,
     BlendMode,
     BoxModeName,
+    BundleProperty,
+    BundlePropertyConfig,
     ChannelMatching,
     ColorOrder,
     CommonKeys,
+    CompInitMode,
     DiceCEReduction,
     EngineStatsKeys,
     FastMRIKeys,
@@ -32,7 +37,6 @@ from .enums import (
     HoVerNetBranch,
     HoVerNetMode,
     InterpolateMode,
-    InverseKeys,
     JITMetadataKeys,
     LazyAttr,
     LossReduction,
@@ -41,6 +45,7 @@ from .enums import (
     MetricReduction,
     NdimageMode,
     NumpyPadMode,
+    PatchKeys,
     PostFix,
     ProbMapKeys,
     PytorchPadMode,
@@ -68,12 +73,14 @@ from .misc import (
     first,
     get_seed,
     has_option,
+    is_immutable,
     is_module_ver_at_least,
     is_scalar,
     is_scalar_tensor,
     issequenceiterable,
     list_to_dict,
     path_to_uri,
+    pprint_edges,
     progress_bar,
     sample_slices,
     save_obj,
