@@ -34,6 +34,7 @@ from monai.apps.detection.transforms.array import (
     MaskToBox,
     RotateBox90,
     SpatialCropBox,
+    StandardizeEmptyBox,
     ZoomBox,
 )
 from monai.apps.detection.transforms.box_ops import convert_box_to_mask
@@ -42,7 +43,7 @@ from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
 from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.data.utils import orientation_ras_lps
-from monai.transforms import Flip, RandFlip, RandRotate90d, RandZoom, Rotate90, SpatialCrop, Zoom
+from monai.transforms import Flip, RandFlip, RandZoom, Rotate90, SpatialCrop, Zoom
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices
@@ -51,6 +52,9 @@ from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.type_conversion import convert_data_type, convert_to_tensor
 
 __all__ = [
+    "StandardizeEmptyBoxd",
+    "StandardizeEmptyBoxD",
+    "StandardizeEmptyBoxDict",
     "ConvertBoxModed",
     "ConvertBoxModeD",
     "ConvertBoxModeDict",
@@ -93,6 +97,50 @@ __all__ = [
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
+
+
+class StandardizeEmptyBoxd(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.StandardizeEmptyBox`.
+
+    When boxes are empty, this transform standardize it to shape of (0,4) or (0,6).
+
+    Example:
+        .. code-block:: python
+
+            data = {"boxes": torch.ones(0,), "image": torch.ones(1, 128, 128, 128)}
+            box_converter = StandardizeEmptyBoxd(box_keys=["boxes"], box_ref_image_keys="image")
+            box_converter(data)
+    """
+
+    def __init__(self, box_keys: KeysCollection, box_ref_image_keys: str, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            box_keys: Keys to pick data for transformation.
+            box_ref_image_keys: The single key that represents the reference image to which ``box_keys`` are attached.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        See also :py:class:`monai.apps.detection,transforms.array.ConvertBoxToStandardMode`
+        """
+        super().__init__(box_keys, allow_missing_keys)
+        box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
+        if len(box_ref_image_keys_tuple) > 1:
+            raise ValueError(
+                "Please provide a single key for box_ref_image_keys.\
+                All boxes of box_keys are attached to box_ref_image_keys."
+            )
+        self.box_ref_image_keys = box_ref_image_keys
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        spatial_dims = len(d[self.box_ref_image_keys].shape) - 1
+        self.converter = StandardizeEmptyBox(spatial_dims=spatial_dims)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        return dict(data)
 
 
 class ConvertBoxModed(MapTransform, InvertibleTransform):
@@ -1243,7 +1291,7 @@ class RotateBox90d(MapTransform, InvertibleTransform):
         return d
 
 
-class RandRotateBox90d(RandRotate90d):
+class RandRotateBox90d(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     With probability `prob`, input boxes and images are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
@@ -1275,7 +1323,13 @@ class RandRotateBox90d(RandRotate90d):
     ) -> None:
         self.image_keys = ensure_tuple(image_keys)
         self.box_keys = ensure_tuple(box_keys)
-        super().__init__(self.image_keys + self.box_keys, prob, max_k, spatial_axes, allow_missing_keys)
+
+        MapTransform.__init__(self, self.image_keys + self.box_keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+
+        self.max_k = max_k
+        self.spatial_axes = spatial_axes
+        self._rand_k = 0
         self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
@@ -1316,6 +1370,10 @@ class RandRotateBox90d(RandRotate90d):
                     self.push_transform(d[key], extra_info=xform)
         return d
 
+    def randomize(self, data: Any | None = None) -> None:
+        self._rand_k = self.R.randint(self.max_k) + 1
+        super().randomize(None)
+
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         if self._rand_k % 4 == 0:
@@ -1353,3 +1411,4 @@ MaskToBoxD = MaskToBoxDict = MaskToBoxd
 RandCropBoxByPosNegLabelD = RandCropBoxByPosNegLabelDict = RandCropBoxByPosNegLabeld
 RotateBox90D = RotateBox90Dict = RotateBox90d
 RandRotateBox90D = RandRotateBox90Dict = RandRotateBox90d
+StandardizeEmptyBoxD = StandardizeEmptyBoxDict = StandardizeEmptyBoxd

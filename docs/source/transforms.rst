@@ -88,6 +88,11 @@ Generic Interfaces
 .. autoclass:: RandomOrder
     :members:
 
+`SomeOf`
+^^^^^^^^^^^^^
+.. autoclass:: SomeOf
+    :members:
+
 Functionals
 -----------
 
@@ -309,6 +314,18 @@ Intensity
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandScaleIntensity.png
     :alt: example of RandScaleIntensity
 .. autoclass:: RandScaleIntensity
+    :members:
+    :special-members: __call__
+
+`ScaleIntensityFixedMean`
+"""""""""""""""""""""""""
+.. autoclass:: ScaleIntensityFixedMean
+    :members:
+    :special-members: __call__
+
+`RandScaleIntensityFixedMean`
+"""""""""""""""""""""""""""""
+.. autoclass:: RandScaleIntensityFixedMean
     :members:
     :special-members: __call__
 
@@ -908,6 +925,12 @@ Spatial
     :members:
     :special-members: __call__
 
+`RandSimulateLowResolution`
+"""""""""""""""""""""""""""
+.. autoclass:: RandSimulateLowResolution
+    :members:
+    :special-members: __call__
+
 
 Smooth Field
 ^^^^^^^^^^^^
@@ -950,6 +973,17 @@ MRI Transforms
     :special-members: __call__
 
 .. autoclass:: monai.apps.reconstruction.transforms.array.EquispacedKspaceMask
+    :special-members: __call__
+
+
+Lazy
+^^^^
+
+`ApplyPending`
+""""""""""""""
+
+.. autoclass:: ApplyPending
+    :members:
     :special-members: __call__
 
 
@@ -1367,6 +1401,12 @@ Intensity (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandScaleIntensityd.png
     :alt: example of RandScaleIntensityd
 .. autoclass:: RandScaleIntensityd
+    :members:
+    :special-members: __call__
+
+`RandScaleIntensityFixedMeand`
+"""""""""""""""""""""""""""""""
+.. autoclass:: RandScaleIntensityFixedMeand
     :members:
     :special-members: __call__
 
@@ -1852,6 +1892,13 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
+`RandSimulateLowResolutiond`
+""""""""""""""""""""""""""""
+.. autoclass:: RandSimulateLowResolutiond
+    :members:
+    :special-members: __call__
+
+
 Smooth Field (Dict)
 ^^^^^^^^^^^^^^^^^^^
 
@@ -1904,6 +1951,17 @@ Smooth Field (Dict)
 `ReferenceBasedNormalizeIntensityd`
 """""""""""""""""""""""""""""""""""
 .. autoclass:: monai.apps.reconstruction.transforms.dictionary.ReferenceBasedNormalizeIntensityd
+    :special-members: __call__
+
+
+Lazy (Dict)
+^^^^^^^^^^^
+
+`ApplyPendingd`
+"""""""""""""""
+
+.. autoclass:: ApplyPendingd
+    :members:
     :special-members: __call__
 
 
@@ -2207,8 +2265,9 @@ Utilities
 .. automodule:: monai.transforms.utils_pytorch_numpy_unification
     :members:
 
-Lazy
-----
-.. automodule:: monai.transforms.lazy
-    :members:
-    :imported-members:
+By Categories
+-------------
+.. toctree::
+   :maxdepth: 1
+
+   transforms_idx

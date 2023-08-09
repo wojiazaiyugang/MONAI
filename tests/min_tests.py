@@ -31,9 +31,11 @@ def run_testsuit():
     exclude_cases = [  # these cases use external dependencies
         "test_ahnet",
         "test_arraydataset",
+        "test_auto3dseg_bundlegen",
         "test_auto3dseg_ensemble",
         "test_auto3dseg_hpo",
         "test_auto3dseg",
+        "test_bundle_onnx_export",
         "test_bundle_trt_export",
         "test_cachedataset",
         "test_cachedataset_parallel",
@@ -45,6 +47,7 @@ def run_testsuit():
         "test_compute_ho_ver_maps_d",
         "test_compute_panoptic_quality",
         "test_contrastive_loss",
+        "test_convert_to_onnx",
         "test_convert_to_trt",
         "test_csv_dataset",
         "test_csv_iterable_dataset",
@@ -80,6 +83,7 @@ def run_testsuit():
         "test_handler_early_stop",
         "test_handler_garbage_collector",
         "test_handler_hausdorff_distance",
+        "test_handler_ignite_metric",
         "test_handler_lr_scheduler",
         "test_handler_mean_dice",
         "test_handler_panoptic_quality",
@@ -156,6 +160,7 @@ def run_testsuit():
         "test_rand_zoom",
         "test_rand_zoomd",
         "test_randtorchvisiond",
+        "test_rankfilter_dist",
         "test_resample_backends",
         "test_resize",
         "test_resized",
@@ -198,6 +203,9 @@ def run_testsuit():
         "test_metrics_reloaded",
         "test_spatial_combine_transforms",
         "test_bundle_workflow",
+        "test_zarr_avg_merger",
+        "test_perceptual_loss",
+        "test_ultrasound_confidence_map_transform",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

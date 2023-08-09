@@ -33,6 +33,7 @@ from .dataset import (
     CSVDataset,
     Dataset,
     DatasetFunc,
+    GDSDataset,
     LMDBDataset,
     NPZDictItemDataset,
     PersistentDataset,
@@ -46,7 +47,7 @@ from .decathlon_datalist import (
     load_decathlon_datalist,
     load_decathlon_properties,
 )
-from .folder_layout import FolderLayout
+from .folder_layout import FolderLayout, FolderLayoutBase
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter, PatchIterd
 from .image_dataset import ImageDataset
 from .image_reader import ImageReader, ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
@@ -150,3 +151,5 @@ with contextlib.suppress(BaseException):
         return _rebuild_meta, (type(meta_tensor), storage, dtype, metadata)
 
     ForkingPickler.register(MetaTensor, reduce_meta_tensor)
+
+from .ultrasound_confidence_map import UltrasoundConfidenceMap
