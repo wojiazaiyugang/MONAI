@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -84,9 +85,23 @@ val_transforms = Compose(
     ]
 )
 
-dataset = load_image_label_pair_dataset(DATASET_DIR)
-train_count = len(dataset) - 5
-train_files, val_files = dataset[:train_count], dataset[train_count:]
+# dataset = load_image_label_pair_dataset(DATASET_DIR)
+train_files, val_files = [], []
+for dataset_name in ["20220923", "20221107", "20221118"]:
+    dataset = Path("/media/3TB/data/xiaoliutech").joinpath(dataset_name)
+    train_datas = dataset.joinpath("train.txt").read_text().splitlines()
+    val_datas = dataset.joinpath("val.txt").read_text().splitlines()
+    for train_data in train_datas:
+        train_files.append({
+            "image": f"{dataset.joinpath(train_data)}.image.nii.gz",
+            "label": f"{dataset.joinpath(train_data)}.label.nii.gz",
+        })
+    for val_data in val_datas:
+        val_files.append({
+            "image": f"{dataset.joinpath(train_data)}.image.nii.gz",
+            "label": f"{dataset.joinpath(train_data)}.label.nii.gz",
+        })
+
 train_ds = PersistentDataset(
     data=train_files,
     transform=train_transforms,
