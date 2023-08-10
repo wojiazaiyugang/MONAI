@@ -26,7 +26,7 @@ from scripts import normalize_image_to_uint8, load_image_label_pair_dataset
 from scripts.dataset import RandomSubItemListDataset
 from scripts.single_tooth_segmentation.config_swin_unetr import scale_intensity_range, IMAGE_SIZE, work_dir, \
     CLASS_COUNT, CACHE_DIR, DATASET_DIR
-from scripts.transforms import ConfirmLabelLessD, CropForegroundSamplesByBBox
+from scripts.transforms import ConfirmLabelLessD, CropForegroundSamplesByBBox, RandCropForegroundSamplesByBBox
 
 tensorboard_writer = SummaryWriter(str(work_dir))
 num_samples = 4
@@ -34,13 +34,13 @@ num_samples = 4
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-crop_margin = 5
+crop_margin = 10
 train_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
-        CropForegroundSamplesByBBox(keys=["image", "label"], label_key="label", margin=crop_margin),
+        RandCropForegroundSamplesByBBox(keys=["image", "label"], label_key="label", margin=crop_margin),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
@@ -77,7 +77,7 @@ val_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
-        CropForegroundSamplesByBBox(keys=["image", "label"], label_key="label", margin=crop_margin),
+        RandCropForegroundSamplesByBBox(keys=["image", "label"], label_key="label", margin=crop_margin),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
