@@ -746,7 +746,9 @@ class RandCropForegroundSamplesByBBox(RandomizableTransform, MapTransform, Inver
                 select_fn=LabelSelector(fg_l), channel_indices=self.channel_indices, margin=rand_margin,
             )
             box_start, box_end = cropper.compute_bounding_box(img=d[self.label_key])
-
+            rand_offset = [random.randint(-rand_margin, rand_margin), random.randint(-rand_margin, rand_margin), random.randint(-rand_margin, rand_margin)]
+            box_start = box_start + rand_offset
+            box_end = box_end + rand_offset
             # fill in the extra keys with unmodified data
             for key in set(d.keys()).difference(set(self.keys)):
                 results[i][key] = deepcopy(d[key])

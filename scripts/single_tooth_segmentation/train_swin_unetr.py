@@ -34,7 +34,7 @@ num_samples = 4
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-crop_margin = 10
+crop_margin = 5
 train_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
@@ -88,7 +88,7 @@ val_transforms = Compose(
 # dataset = load_image_label_pair_dataset(DATASET_DIR)
 train_files, val_files = [], []
 for dataset_name in ["20220923", "20221107", "20221118"]:
-    dataset = Path("/media/3TB/data/xiaoliutech").joinpath(dataset_name)
+    dataset = Path("/media/DATA2/yujiannan").joinpath(dataset_name)
     train_datas = dataset.joinpath("train.txt").read_text().splitlines()
     val_datas = dataset.joinpath("val.txt").read_text().splitlines()
     for train_data in train_datas:
