@@ -40,9 +40,9 @@ train_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
-        RandCropForegroundSamplesByBBox(keys=["image", "label"], label_key="label", margin=crop_margin),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
+        RandCropForegroundSamplesByBBox(keys=["image", "label"], label_key="label", margin=crop_margin),
         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
         RandFlipd(
@@ -77,9 +77,9 @@ val_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
-        RandCropForegroundSamplesByBBox(keys=["image", "label"], label_key="label", margin=crop_margin),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
+        RandCropForegroundSamplesByBBox(keys=["image", "label"], label_key="label", margin=crop_margin),
         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=True),
     ]
