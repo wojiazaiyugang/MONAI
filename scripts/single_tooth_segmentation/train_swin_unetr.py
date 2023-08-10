@@ -116,7 +116,7 @@ val_ds = PersistentDataset(
 )
 
 val_ds = RandomSubItemListDataset(val_ds, max_len=1)
-train_loader = DataLoader(train_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=False)
+train_loader = DataLoader(train_ds, batch_size=2, shuffle=False, num_workers=0, pin_memory=False)
 val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=0, pin_memory=False)
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
