@@ -635,10 +635,11 @@ class CropToothClassificationInstance(MapTransform):
         ratio = origin_spacing[0] / 0.25, origin_spacing[1] / 0.25, origin_spacing[2] / 0.25
         for tooth_label, tooth_info in info.items():
             bbox = tooth_info["bbox"]
-            new_bbox = [int(ratio[0] * bbox[0]), int(ratio[1] * bbox[1]), int(ratio[2] * bbox[2]), int(ratio[0] * bbox[3]), int(ratio[1] * bbox[4]), int(ratio[2] * bbox[5])]
-            width = new_bbox[3]-new_bbox[0]
-            height = new_bbox[4]-new_bbox[1]
-            depth = new_bbox[5]-new_bbox[2]
+            new_bbox = [int(ratio[0] * bbox[0]), int(ratio[1] * bbox[1]), int(ratio[2] * bbox[2]), int(ratio[0] * bbox[3]), int(ratio[1] * bbox[4]),
+                        int(ratio[2] * bbox[5])]
+            width = new_bbox[3] - new_bbox[0]
+            height = new_bbox[4] - new_bbox[1]
+            depth = new_bbox[5] - new_bbox[2]
             croper = SpatialCrop(roi_start=[new_bbox[0], new_bbox[1], new_bbox[2]],
                                  roi_end=[new_bbox[3], new_bbox[4], new_bbox[5]])
             patch = croper(data['image'])
@@ -672,6 +673,26 @@ class RandomElasticDeformation(RandomizableTransform, MapTransform):
             return d
         else:
             return data
+
+
+class MyRandCrop(RandomizableTransform, MapTransform):
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, keys: KeysCollection):
+        MapTransform.__init__(self, keys, False)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+        d = dict(data)
+        rand_margin_1 = [random.randint(0, 10), random.randint(0, 10), random.randint(0, 10)]
+        rand_margin_2 = [random.randint(0, 10), random.randint(0, 10), random.randint(0, 10)]
+        for key in self.key_iterator(d):
+            bbox_start = np.array(rand_margin_1)
+            bbox_end = np.array(d[key].shape[1:]) - np.array(rand_margin_2)
+            cropper = CropForeground(channel_indices=None)
+            d[key] = cropper.crop_pad(img=d[key], box_start=bbox_start, box_end=bbox_end, mode="constant")
+
+        return d
+
 
 class RandCropForegroundSamplesByBBox(RandomizableTransform, MapTransform, InvertibleTransform):
     """
