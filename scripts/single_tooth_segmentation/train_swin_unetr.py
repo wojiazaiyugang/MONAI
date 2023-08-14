@@ -92,7 +92,7 @@ val_transforms = Compose(
 
 # dataset = load_image_label_pair_dataset(DATASET_DIR)
 train_files, val_files = [], []
-for dataset_name in ["20220923", "20221107", "20221118"]:
+for dataset_name in ["20220923", "20221107", "20221118", "20230724_tooth_instance", "20230725_tooth_instance"]:
     dataset = Path("/media/3TB/data/xiaoliutech").joinpath(dataset_name)
     train_datas = dataset.joinpath("train.txt").read_text().splitlines()
     val_datas = dataset.joinpath("val.txt").read_text().splitlines()
