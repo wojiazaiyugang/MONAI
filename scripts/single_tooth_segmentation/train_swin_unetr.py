@@ -41,9 +41,11 @@ train_transforms = Compose(
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
         CropForegroundSamplesByBBox(keys=["image", "label"], label_key="label", margin=crop_margin),
-        MyRandCrop(keys=["image", "label"]),
+
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
+
+        MyRandCrop(keys=["image", "label"]),
         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
         RandFlipd(
@@ -79,9 +81,10 @@ val_transforms = Compose(
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
         CropForegroundSamplesByBBox(keys=["image", "label"], label_key="label", margin=crop_margin),
-        MyRandCrop(keys=["image", "label"]),
         ConfirmLabelLessD(keys=["label"], max_val=50),
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
+
+        MyRandCrop(keys=["image", "label"]),
         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=True),
     ]
@@ -90,7 +93,7 @@ val_transforms = Compose(
 # dataset = load_image_label_pair_dataset(DATASET_DIR)
 train_files, val_files = [], []
 for dataset_name in ["20220923", "20221107", "20221118"]:
-    dataset = Path("/media/DATA2/yujiannan").joinpath(dataset_name)
+    dataset = Path("/media/3TB/data/xiaoliutech").joinpath(dataset_name)
     train_datas = dataset.joinpath("train.txt").read_text().splitlines()
     val_datas = dataset.joinpath("val.txt").read_text().splitlines()
     for train_data in train_datas:
