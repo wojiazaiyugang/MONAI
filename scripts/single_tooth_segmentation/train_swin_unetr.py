@@ -34,7 +34,7 @@ num_samples = 4
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-crop_margin = 5
+crop_margin = 10
 train_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
