@@ -20,7 +20,7 @@ from monai.transforms import (
     RandFlipd,
     RandShiftIntensityd,
     RandRotate90d,
-    EnsureTyped, MapLabelValued, ResizeWithPadOrCropd
+    EnsureTyped, MapLabelValued, ResizeWithPadOrCropd, RandCoarseDropoutd
 )
 from scripts import normalize_image_to_uint8, load_image_label_pair_dataset
 from scripts.dataset import RandomSubItemListDataset
@@ -46,6 +46,7 @@ train_transforms = Compose(
         MapLabelValued(keys=["label"], orig_labels=list(range(1, 50)), target_labels=[1 for _ in range(1, 50)]),
 
         MyRandCrop(keys=["image", "label"]),
+        RandCoarseDropoutd(keys=["image"], holes=1, spatial_size=(1, 1, 1), max_holes=10, prob=0.1, max_spatial_size=(20, 20, 20)),
         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=IMAGE_SIZE),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
         RandFlipd(
