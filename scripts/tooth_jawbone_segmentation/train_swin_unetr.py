@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 
 import cv2
-import mlflow
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -33,7 +32,7 @@ train_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
-        RandSpatialCropd(keys=["image", "label"], roi_size=(IMAGE_SIZE[0]+20,IMAGE_SIZE[1]+20,IMAGE_SIZE[2]+20), random_size=False),
+        RandSpatialCropd(keys=["image", "label"], roi_size=(IMAGE_SIZE[0] + 20, IMAGE_SIZE[1] + 20, IMAGE_SIZE[2] + 20), random_size=False),
         RandomElasticDeformation(keys=["image", "label"]),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
         CenterSpatialCropd(keys=["image", "label"], roi_size=IMAGE_SIZE),
@@ -67,19 +66,22 @@ val_transforms = Compose(
     ]
 )
 
-dataset_dir = Path("/media/3TB/data/xiaoliutech/20221124")
-mlflow.log_param("dataset", "20221124")
-dataset = []
-for file in dataset_dir.iterdir():
-    if "image" in file.name:
-        label_file = file.parent.joinpath(file.name.replace("image", "label"))
-        dataset.append({
-            "image": str(file),
-            "label": str(label_file)
-        })
+train_names = Path("/media/3TB/data/xiaoliutech/20231017/train.txt").read_text().splitlines() + \
+                Path("/media/3TB/data/xiaoliutech/20231017/val.txt").read_text().splitlines()
+val_names = Path("/media/3TB/data/xiaoliutech/20231017/test.txt").read_text().splitlines()
 
-train_count = int(len(dataset) * 0.95)
-train_files, val_files = dataset[:train_count], dataset[train_count:]
+train_files, val_files = [], []
+for train_name in train_names:
+    train_files.append({
+        "image": Path("/media/3TB/data/xiaoliutech/20231017").joinpath(train_name + ".image.nii.gz"),
+        "label": Path("/media/3TB/data/xiaoliutech/20231017_jawbone_label").joinpath(train_name + ".label.nii.gz")
+    })
+for val_name in val_names:
+    val_files.append({
+        "image": Path("/media/3TB/data/xiaoliutech/20231017").joinpath(val_name + ".image.nii.gz"),
+        "label": Path("/media/3TB/data/xiaoliutech/20231017_jawbone_label").joinpath(val_name + ".label.nii.gz")
+    })
+
 train_ds = PersistentDataset(
     data=train_files,
     transform=train_transforms,
@@ -107,9 +109,8 @@ model = SwinUNETR(
     in_channels=1,
     out_channels=CLASS_COUNT,
     feature_size=48,
-    use_checkpoint=True,
+    use_checkpoint=False,
 ).to(device)
-mlflow.log_param("model", "SwinUNETR")
 
 if LOAD_FROM:
     model_dict = torch.load(LOAD_FROM)
@@ -184,11 +185,6 @@ def validation(epoch_iterator_val):
                     elif index == 4:
                         color = (0, 255, 255)
                     pred_image[pred.cpu().numpy() > 0] = color
-                log_image = np.hstack((gt_image, pred_image))
-                with tempfile.TemporaryDirectory() as tempdir:
-                    image_file = Path(tempdir).joinpath(f"step_{global_step}.png")
-                    cv2.imwrite(str(image_file), log_image)
-                    mlflow.log_artifact(str(image_file), artifact_path="val_images")
                 log_image = cv2.cvtColor(log_image, cv2.COLOR_BGR2RGB)
                 tensorboard_writer.add_image(tag="val_image",
                                              img_tensor=log_image.transpose([2, 1, 0]),
@@ -221,7 +217,6 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
             % (global_step, max_iterations, loss)
         )
         tensorboard_writer.add_scalar("step_loss", loss, global_step)
-        mlflow.log_metric("step_loss", loss, global_step)
         if (
                 global_step % eval_num == 0 and global_step != 0
         ) or global_step == max_iterations:
@@ -233,14 +228,11 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
             epoch_loss_values.append(epoch_loss)
             metric_values.append(dice_val)
             tensorboard_writer.add_scalar("dice_val", dice_val, global_step)
-            mlflow.log_metric("Dice", dice_val, global_step)
             if dice_val > dice_val_best:
                 dice_val_best = dice_val
                 global_step_best = global_step
                 save_file = work_dir.joinpath(f"jawbone_seg_swin_unetr_20221124_Dice_{round(dice_val_best, 4)}_2022XXXX.pth")
                 torch.save(model.state_dict(), str(save_file))
-                mlflow.log_artifact(str(save_file), artifact_path="checkpoints")
-                mlflow.set_tag("best_rand_dice", round(dice_val_best, 4))
                 print(
                     "Model Was Saved ! Current Best Avg. Dice: {} Current Avg. Dice: {}".format(
                         dice_val_best, dice_val
