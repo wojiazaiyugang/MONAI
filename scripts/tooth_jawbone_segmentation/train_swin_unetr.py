@@ -32,10 +32,10 @@ train_transforms = Compose(
         LoadImaged(keys=["image", "label"], ensure_channel_first=True),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         scale_intensity_range,
-        RandSpatialCropd(keys=["image", "label"], roi_size=(IMAGE_SIZE[0] + 20, IMAGE_SIZE[1] + 20, IMAGE_SIZE[2] + 20), random_size=False),
-        RandomElasticDeformation(keys=["image", "label"]),
+        RandSpatialCropd(keys=["image", "label"], roi_size=(IMAGE_SIZE[0], IMAGE_SIZE[1], IMAGE_SIZE[2]), random_size=False),
+        # RandomElasticDeformation(keys=["image", "label"]),
         EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
-        CenterSpatialCropd(keys=["image", "label"], roi_size=IMAGE_SIZE),
+        # CenterSpatialCropd(keys=["image", "label"], roi_size=IMAGE_SIZE),
         RandShiftIntensityd(
             keys=["image"],
             offsets=0.10,
@@ -185,12 +185,14 @@ def validation(epoch_iterator_val):
                     elif index == 4:
                         color = (0, 255, 255)
                     pred_image[pred.cpu().numpy() > 0] = color
+                log_image = np.hstack((gt_image, pred_image))
                 log_image = cv2.cvtColor(log_image, cv2.COLOR_BGR2RGB)
                 tensorboard_writer.add_image(tag="val_image",
                                              img_tensor=log_image.transpose([2, 1, 0]),
                                              global_step=global_step)
         mean_dice_val = dice_metric.aggregate().item()
         dice_metric.reset()
+    torch.cuda.empty_cache()
     return mean_dice_val
 
 
@@ -231,7 +233,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
             if dice_val > dice_val_best:
                 dice_val_best = dice_val
                 global_step_best = global_step
-                save_file = work_dir.joinpath(f"jawbone_seg_swin_unetr_20221124_Dice_{round(dice_val_best, 4)}_2022XXXX.pth")
+                save_file = work_dir.joinpath(f"jawbone_seg_swin_unetr_20231017_Dice_{round(dice_val_best, 4)}_2022XXXX.pth")
                 torch.save(model.state_dict(), str(save_file))
                 print(
                     "Model Was Saved ! Current Best Avg. Dice: {} Current Avg. Dice: {}".format(
